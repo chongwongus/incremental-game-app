@@ -1,0 +1,79 @@
+stat categories:
+strength (working out, fitness)
+attack (self defense ?)
+defence (self defense ? )
+constitution (working out, fitness)
+agility (cardio, stretching)
+cooking
+firemaking (bbq)
+woodcutting
+dungeoneering (hiking, caving...)
+prayer (mindfulness)
+crafting (sewing)
+
+SLAYER
+
+farming
+construction
+hunter (hunting?)
+herblore (spices, planting gardening)
+thieving ...
+
+1-99
+
+Here's a quick breakdown of how you could implement these in your app:
+
+Physical skills:
+
+Strength, Constitution: Track gym visits, weight lifted, body measurements
+Attack, Defence: Log martial arts or self-defense classes, sparring sessions
+Agility: Monitor running, yoga, stretching routines
+
+
+Outdoor skills:
+
+Woodcutting: Track time spent on carpentry or logging activities
+Dungeoneering: Log hiking trips, cave explorations, time spent outdoors
+Farming, Herblore: Garden maintenance, plant care, herb growing
+Hunter: Time spent hunting or tracking animals (where legal)
+
+
+Domestic skills:
+
+Cooking, Firemaking: Log recipes made, BBQ sessions, cooking time
+Crafting: Track sewing projects, DIY crafts completed
+Construction: Home improvement projects, furniture assembly
+
+
+Mental/Spiritual skills:
+
+Prayer: Meditation sessions, mindfulness exercises
+Slayer: Could be adapted to completing challenging tasks or goals
+
+
+Misc skills:
+
+Thieving: This might be tricky to implement legally - consider replacing with a different skill
+
+Smithing: Metalworking, welding, or jewelry making
+Fletching: Archery or dart throwing
+Fishing: Actual fishing or could be adapted for "catching" good deals
+Mining: Rock collecting, geology studies, or metal detecting
+Runecrafting: Programming or coding skills
+Magic: Learning card tricks, stage magic, or studying scientific principles
+Summoning: Pet training or leadership skills
+Divination: Studying astronomy or meteorology
+Invention: DIY projects, creating gadgets, or solving problems creatively
+Archaeology: Studying history, visiting historical sites, or actual archaeological activities
+Sailing: Boating activities or navigation skills
+Cartography: Map reading, creating maps, or geography knowledge
+Alchemy: Chemistry experiments or mixing cocktails
+Stealth: Could be adapted for wildlife photography or birdwatching
+Diplomacy: Conflict resolution or public speaking
+Lore: Reading books, visiting museums, or learning about various subjects
+Survival: First aid skills, wilderness survival techniques
+Artistry: Painting, drawing, or any form of visual arts
+Performance: Music, dance, or theater skills
+Economics: Personal finance management or investment skills
+
+

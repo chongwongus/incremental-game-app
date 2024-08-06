@@ -1,0 +1,6 @@
+{
+  "appTitle": "flutter_incremental_app_game",
+  "@appTitle": {
+    "description": "The title of the application"
+  }
+}
