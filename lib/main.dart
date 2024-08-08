@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:core';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'skill.dart';
 import 'skill_detail_page.dart';
+import 'skill_achievements.dart';
 import 'achievements_page.dart';
 import 'achievement.dart';
 
@@ -28,143 +31,7 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class Skill {
-  final String name;
-  final IconData icon;
-  int level;
-  int xp;
 
-  Skill({required this.name, required this.icon, this.level = 1, this.xp = 0});
-
-  
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'level': level,
-    'xp': xp,
-  };
-
-  factory Skill.fromJson(Map<String, dynamic> json) => Skill(
-    name: json['name'],
-    icon: _getIconForSkill(json['name']),
-    level: json['level'],
-    xp: json['xp'],
-  );
-int getXpForLevel(int level) {
-  if (level < 1 || level > 99) {
-    throw ArgumentError('Level must be between 1 and 99');
-  }
-  return (0.25 * level * (level - 1)).floor();
-}
-
-    int calculateLevel() {
-    for (int i = 1; i <= 99; i++) {
-      if (xp < getXpForLevel(i)) {
-        return i - 1;
-      }
-    }
-    return 99;
-  }
-
-  int get xpForNextLevel {
-    return level < 99 ? getXpForLevel(level + 1) : getXpForLevel(99);
-  }
-
-  void addXp(int amount) {
-    xp += amount;
-    level = calculateLevel();
-  }
-}
-
-
- IconData _getIconForSkill(String skillName) {
-    switch (skillName) {
-      case 'Strength': return Icons.fitness_center;
-      case 'Constitution': return Icons.favorite;
-      case 'Intelligence': return Icons.psychology;
-      case 'Wisdom': return Icons.lightbulb;
-      case 'Charisma': return Icons.people;
-      case 'Defense': return Icons.shield;
-      case 'Attack': return Icons.sports_kabaddi;
-      case 'Agility': return Icons.directions_run;
-      case 'Cooking': return Icons.restaurant;
-      case 'Crafting': return Icons.build;
-      case 'Woodcutting': return Icons.nature;
-      case 'Farming': return Icons.agriculture;
-      case 'Dungoneering': return Icons.explore;
-      case 'Prayer': return Icons.self_improvement;
-      case 'Fishing': return Icons.catching_pokemon;
-      default: return Icons.star;
-    }
-  }
-
-
-
-class SkillTile extends StatelessWidget {
-  final Skill skill;
-  final VoidCallback onTrain;
-
-  SkillTile({required this.skill, required this.onTrain});
-
-  @override
-  Widget build(BuildContext context) {
-    double progressToNextLevel = (skill.xp - skill.getXpForLevel(skill.level)) / 
-                                 (skill.xpForNextLevel - skill.getXpForLevel(skill.level));
-
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(skill.icon, size: 40, color: Colors.blue[800]),
-            SizedBox(height: 8),
-            Text(
-              skill.name,
-              style: TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              'Level ${skill.level}',
-              style: TextStyle(fontSize: 12),
-            ),
-            SizedBox(height: 8),
-            ElevatedButton(
-              child: Text('Train'),
-              onPressed: onTrain,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color.fromARGB(255, 238, 160, 234),
-
-                 // NEED TO BE FIXED
-                 // NEED TO BE FIXED
-                 // NEED TO BE FIXED
-
-                minimumSize: Size(double.maxFinite, 30),
-                
-                 // NEED TO BE FIXED
-                 // NEED TO BE FIXED
-                 // NEED TO BE FIXED
-                 
-              ),
-            ),
-            SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: progressToNextLevel,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'XP: ${skill.xp} / ${skill.xpForNextLevel}',
-              style: TextStyle(fontSize: 10),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 
 class _HomePageState extends State<HomePage> {
@@ -185,62 +52,87 @@ class _HomePageState extends State<HomePage> {
     Skill(name: 'Prayer', icon: Icons.self_improvement),
     Skill(name: 'Fishing', icon: Icons.catching_pokemon),
   ];
+  List<Achievement> achievements = [];
+
 
 @override
 void initState() {
   super.initState();
   _loadSkills();
+  achievements = createAchievements();
+
 }
 
-Future<void> _loadSkills() async {
-  final prefs = await SharedPreferences.getInstance();
-  String? skillsJson = prefs.getString('skills');
-  if (skillsJson != null) {
-    List<dynamic> skillsList = jsonDecode(skillsJson);
-    setState(() {
-      skills = skillsList.map((skillJson) => Skill.fromJson(skillJson)).toList();
-    });
-  }
-}
-
-Future<void> _saveSkills() async {
-  final prefs = await SharedPreferences.getInstance();
-  String skillsJson = jsonEncode(skills.map((skill) => skill.toJson()).toList());
-  await prefs.setString('skills', skillsJson);
-}
-
-
-
-  void incrementSkill(Skill skill) {
-    setState(() {
-      skill.addXp(100 * skill.level);
-      _saveSkills();
-    });
+  Future<void> _loadSkills() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? skillsJson = prefs.getString('skills');
+    if (skillsJson != null) {
+      List<dynamic> skillsList = jsonDecode(skillsJson);
+      setState(() {
+        skills = skillsList.map((skillJson) => Skill.fromJson(skillJson)).toList();
+      });
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Life Skills Tracker'),
-        backgroundColor: Colors.blue[800],
-      ),
-      body: GridView.builder(
-        padding: EdgeInsets.all(16),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 0.75,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
+  Future<void> _saveSkills() async {
+    final prefs = await SharedPreferences.getInstance();
+    String skillsJson = jsonEncode(skills.map((skill) => skill.toJson()).toList());
+    await prefs.setString('skills', skillsJson);
+  }
+
+
+
+Skill incrementSkill(Skill skill) {
+  skill.addXp(calculateXpGain(skill));
+  _saveSkills();
+  return skill;
+}
+
+int calculateXpGain(Skill skill) {
+  int baseXp = 10;
+  int levelBonus = (skill.level / 10).floor();
+  return baseXp + levelBonus;
+}
+
+  void _onSkillTap(Skill skill) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SkillDetailScreen(
+          skill: skill,
+          onTrain: (updatedSkill) {
+            setState(() {
+              incrementSkill(updatedSkill);
+              checkAchievements(updatedSkill);
+            });
+          },
+          achievements: achievements.where((a) => a.skillName == skill.name).toList(),
         ),
-        itemCount: skills.length,
-        itemBuilder: (context, index) {
-          return SkillTile(
-            skill: skills[index],
-            onTrain: () => incrementSkill(skills[index]),
-          );
-        },
       ),
     );
   }
+
+  void checkAchievements(Skill skill) {
+    for (var achievement in achievements) {
+      if (achievement.skillName == skill.name && 
+          skill.level >= achievement.requiredLevel &&
+          !achievement.unlocked) {
+        achievement.unlocked = true;
+        // You might want to show a notification here
+        print('Achievement unlocked: ${achievement.title}');
+      }
+    }
+  }
+
+// In your build method:
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(title: Text('Skills')),
+    body: SkillsScreen(
+      skills: skills,
+      onSkillTap: _onSkillTap,
+    ),
+  );
+}
 }

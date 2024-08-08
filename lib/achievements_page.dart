@@ -1,11 +1,39 @@
 import 'package:flutter/material.dart';
 import 'achievement.dart';
 
+class AchievementsWidget extends StatelessWidget {
+  final List<Achievement> achievements;
+  final String? skillName;
+
+  AchievementsWidget({required this.achievements, this.skillName});
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredAchievements = skillName != null
+        ? achievements.where((a) => a.skillName == skillName).toList()
+        : achievements;
+
+    return ListView.builder(
+      itemCount: filteredAchievements.length,
+      itemBuilder: (context, index) {
+        final achievement = filteredAchievements[index];
+        return ListTile(
+          title: Text(achievement.title),
+          subtitle: Text(achievement.description),
+          trailing: Icon(
+            achievement.unlocked ? Icons.star : Icons.star_border,
+            color: achievement.unlocked ? Colors.yellow : Colors.grey,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class AchievementsPage extends StatelessWidget {
   final List<Achievement> achievements;
-  final Map<String, Map<String, int>> skills;
 
-  AchievementsPage({required this.achievements, required this.skills});
+  AchievementsPage({required this.achievements});
 
   @override
   Widget build(BuildContext context) {
@@ -13,21 +41,7 @@ class AchievementsPage extends StatelessWidget {
       appBar: AppBar(
         title: Text('Achievements'),
       ),
-      body: ListView.builder(
-        itemCount: achievements.length,
-        itemBuilder: (context, index) {
-          final achievement = achievements[index];
-          return ListTile(
-            title: Text(achievement.title),
-            subtitle: Text(achievement.description),
-            trailing: Icon(
-              achievement.unlocked ? Icons.star : Icons.star_border,
-              color: achievement.unlocked ? Colors.yellow : Colors.grey,
-            ),
-          );
-        },
-      ),
+      body: AchievementsWidget(achievements: achievements),
     );
   }
 }
-

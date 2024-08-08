@@ -1,62 +1,166 @@
 import 'package:flutter/material.dart';
+import 'skill.dart';
+import 'achievement.dart';
+import 'achievements_page.dart';
 
-class SkillDetailPage extends StatelessWidget {
-  final String skillName;
-  final int level;
-  final int xp;
-  final int xpForNextLevel;
+class SkillDetailScreen extends StatefulWidget {
+  final Skill skill;
+  final Function(Skill) onTrain;
+  final List<Achievement> achievements;
 
-  SkillDetailPage({
-    required this.skillName,
-    required this.level,
-    required this.xp,
-    required this.xpForNextLevel,
+  SkillDetailScreen({
+    required this.skill,
+    required this.onTrain,
+    required this.achievements,
   });
 
   @override
+  _SkillDetailScreenState createState() => _SkillDetailScreenState();
+}
+
+class _SkillDetailScreenState extends State<SkillDetailScreen> {
+  late Skill skill;
+
+  @override
+  void initState() {
+    super.initState();
+    skill = widget.skill;
+  }
+
+  void _train() {
+    widget.onTrain(skill);
+    setState(() {
+      // The skill object has been updated by onTrain, so we just need to rebuild
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    double progressToNextLevel = skill.xp == skill.xpForNextLevel 
+        ? 1.0 
+        : (skill.xp - skill.getXpForLevel(skill.level)) / 
+          (skill.xpForNextLevel - skill.getXpForLevel(skill.level));
+
+    progressToNextLevel = progressToNextLevel.clamp(0.0, 1.0);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(skillName),
+        title: Text(skill.name),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Level: $level', style: Theme.of(context).textTheme.titleLarge),
-            SizedBox(height: 20),
-            Text('XP: $xp / $xpForNextLevel'),
-            SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: xp / xpForNextLevel,
-              minHeight: 10,
-            ),
-            SizedBox(height: 20),
-            Text('Activities to increase this skill:'),
-            SizedBox(height: 10),
-            _buildActivityList(),
-          ],
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(skill.icon, size: 48, color: Colors.blue[800]),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Level ${skill.level}',
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'XP: ${skill.xp} / ${skill.xpForNextLevel}',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              LinearProgressIndicator(
+                value: progressToNextLevel,
+                backgroundColor: Colors.grey[300],
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+              ),
+              SizedBox(height: 24),
+              ElevatedButton(
+                child: Text('Train'),
+                onPressed: _train,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color.fromARGB(255, 238, 160, 234),
+                  minimumSize: Size(double.infinity, 50),
+                ),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Achievements',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Container(
+                height: 200, // Adjust this value as needed
+                child: AchievementsWidget(
+                  achievements: widget.achievements,
+                  skillName: skill.name,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildActivityList() {
-    // This is where you'd add activities specific to each skill
-    List<String> activities = [
-      'Activity 1',
-      'Activity 2',
-      'Activity 3',
-    ];
+class SkillsScreen extends StatelessWidget {
+  final List<Skill> skills;
+  final Function(Skill) onSkillTap;
 
-    return Column(
-      children: activities.map((activity) => 
-        ListTile(
-          leading: Icon(Icons.star),
-          title: Text(activity),
-        )
-      ).toList(),
+  SkillsScreen({required this.skills, required this.onSkillTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 2.5,
+      ),
+      itemCount: skills.length,
+      itemBuilder: (context, index) {
+        return SkillTile(
+          skill: skills[index],
+          onTap: () => onSkillTap(skills[index]),
+        );
+      },
+    );
+  }
+}
+
+class SkillTile extends StatelessWidget {
+  final Skill skill;
+  final VoidCallback onTap;
+
+  SkillTile({required this.skill, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        elevation: 2,
+        child: Container(
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(skill.icon, size: 24, color: Colors.blue[800]),
+              SizedBox(height: 4),
+              Text(
+                '${skill.level}/99',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
