@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'skill.dart';
 import 'achievement.dart';
 import 'achievements_page.dart';
+import 'persistence_service.dart';
+
+
 
 class SkillDetailScreen extends StatefulWidget {
   final Skill skill;
@@ -20,19 +23,32 @@ class SkillDetailScreen extends StatefulWidget {
 
 class _SkillDetailScreenState extends State<SkillDetailScreen> {
   late Skill skill;
+  final PersistenceService _persistenceService = PersistenceService();
 
   @override
   void initState() {
     super.initState();
     skill = widget.skill;
+    _loadSkillData();
   }
+
+Future<void> _loadSkillData() async {
+  final skillData = await _persistenceService.getSkillData(skill.name);
+  setState(() {
+    skill.xp = skillData['exp']!;
+    skill.updateLevel();
+  });
+}
+
+
 
   void _train() {
     widget.onTrain(skill);
-    setState(() {
-      // The skill object has been updated by onTrain, so we just need to rebuild
-    });
+    _persistenceService.saveSkillData(skill.name, skill.level, skill.xp);
+    print('Skill trained: ${skill.name}, Level: ${skill.level}, XP: ${skill.xp}');  // Debug print
+    setState(() {});
   }
+
 
   @override
   Widget build(BuildContext context) {

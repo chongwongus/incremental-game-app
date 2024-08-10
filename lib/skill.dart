@@ -52,6 +52,10 @@ class Skill {
     return 99;
   }
 
+  void updateLevel() {
+  level = calculateLevel();
+}
+
   int get xpForNextLevel {
     return level < 99 ? getXpForLevel(level + 1) : getXpForLevel(99);
   }

@@ -9,7 +9,9 @@ import 'achievements_page.dart';
 import 'achievement.dart';
 
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SharedPreferences.getInstance();
   runApp(MyApp());
 }
 
@@ -54,45 +56,80 @@ class _HomePageState extends State<HomePage> {
   ];
   List<Achievement> achievements = [];
 
+  Future<void> _checkPersistedData() async {
+    final prefs = await SharedPreferences.getInstance();
+    print('Persisted test value: ${prefs.getString('test_key')}');
+    print('Persisted skills data: ${prefs.getString('skills')}');
+  }
 
-@override
-void initState() {
-  super.initState();
-  _loadSkills();
-  achievements = createAchievements();
+  @override
+  void initState() {
+    super.initState();
+    _checkPersistedData();
+    _loadSkills();
+    achievements = createAchievements();
+  }
 
-}
+  Future<void> _testSharedPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('test_key', 'test_value');
+    print('Test value set: ${prefs.getString('test_key')}');
+  }
+
+  // Create a method to check the test value
+  Future<void> _checkTestValue() async {
+    final prefs = await SharedPreferences.getInstance();
+    print('Test value retrieved: ${prefs.getString('test_key')}');
+  }
 
   Future<void> _loadSkills() async {
+    print('Loading skills...');
     final prefs = await SharedPreferences.getInstance();
     String? skillsJson = prefs.getString('skills');
+    print('Loaded skills JSON: $skillsJson');
     if (skillsJson != null) {
       List<dynamic> skillsList = jsonDecode(skillsJson);
       setState(() {
         skills = skillsList.map((skillJson) => Skill.fromJson(skillJson)).toList();
       });
+      print('Skills loaded: ${skills.map((s) => '${s.name}: Lvl ${s.level}, XP ${s.xp}').join(', ')}');
+    } else {
+      print('No skills data found in storage');
     }
   }
 
+
   Future<void> _saveSkills() async {
+    print('Saving skills...');
     final prefs = await SharedPreferences.getInstance();
     String skillsJson = jsonEncode(skills.map((skill) => skill.toJson()).toList());
     await prefs.setString('skills', skillsJson);
+    print('Skills saved: $skillsJson');  // Debug print
+
+    // Verify the save immediately
+    String? savedData = prefs.getString('skills');
+    print('Verification - Skills in storage: $savedData');
+
+  }
+
+  Future<void> _checkStoredData() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? skillsJson = prefs.getString('skills');
+    print('Stored skills data: $skillsJson');
   }
 
 
+  Skill incrementSkill(Skill skill) {
+    skill.addXp(calculateXpGain(skill));
+    _saveSkills();
+    return skill;
+  }
 
-Skill incrementSkill(Skill skill) {
-  skill.addXp(calculateXpGain(skill));
-  _saveSkills();
-  return skill;
-}
-
-int calculateXpGain(Skill skill) {
-  int baseXp = 10;
-  int levelBonus = (skill.level / 10).floor();
-  return baseXp + levelBonus;
-}
+  int calculateXpGain(Skill skill) {
+    int baseXp = 10;
+    int levelBonus = (skill.level / 10).floor();
+    return baseXp + levelBonus;
+  }
 
   void _onSkillTap(Skill skill) {
     Navigator.push(
@@ -105,12 +142,14 @@ int calculateXpGain(Skill skill) {
               incrementSkill(updatedSkill);
               checkAchievements(updatedSkill);
             });
+            _saveSkills();  // Call this after setState
           },
           achievements: achievements.where((a) => a.skillName == skill.name).toList(),
         ),
       ),
-    );
+    ).then((_) => _saveSkills());  // Also save when returning from the detail screen
   }
+
 
   void checkAchievements(Skill skill) {
     for (var achievement in achievements) {
