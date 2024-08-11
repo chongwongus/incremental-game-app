@@ -7,6 +7,10 @@ import 'skill_detail_page.dart';
 import 'skill_achievements.dart';
 import 'achievements_page.dart';
 import 'achievement.dart';
+import 'daily.dart';
+import 'dart:async';
+
+
 
 
 void main() async {
@@ -55,6 +59,26 @@ class _HomePageState extends State<HomePage> {
     Skill(name: 'Fishing', icon: Icons.catching_pokemon),
   ];
   List<Achievement> achievements = [];
+  DailyQuestManager questManager = DailyQuestManager();
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSkills().then((_) {
+      setState(() {});
+    });
+    achievements = createAchievements();
+    _loadDailyQuests();
+    // Set up a timer to check and reset quests periodically
+    Timer.periodic(Duration(hours: 1), (Timer t) => questManager.checkAndResetQuests());
+  }
+
+  Future<void> _loadDailyQuests() async {
+    await questManager.loadQuests();
+    setState(() {});
+  }
 
   Future<void> _checkPersistedData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -62,13 +86,7 @@ class _HomePageState extends State<HomePage> {
     print('Persisted skills data: ${prefs.getString('skills')}');
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _checkPersistedData();
-    _loadSkills();
-    achievements = createAchievements();
-  }
+
 
   Future<void> _testSharedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -82,21 +100,50 @@ class _HomePageState extends State<HomePage> {
     print('Test value retrieved: ${prefs.getString('test_key')}');
   }
 
-  Future<void> _loadSkills() async {
-    print('Loading skills...');
-    final prefs = await SharedPreferences.getInstance();
-    String? skillsJson = prefs.getString('skills');
-    print('Loaded skills JSON: $skillsJson');
-    if (skillsJson != null) {
-      List<dynamic> skillsList = jsonDecode(skillsJson);
-      setState(() {
-        skills = skillsList.map((skillJson) => Skill.fromJson(skillJson)).toList();
-      });
-      print('Skills loaded: ${skills.map((s) => '${s.name}: Lvl ${s.level}, XP ${s.xp}').join(', ')}');
-    } else {
-      print('No skills data found in storage');
-    }
+  Future<void> _initializeSkills() async {
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getString('skills') == null) {
+    print('Initializing skills for new user...');
+    skills = [
+    Skill(name: 'Strength', icon: Icons.fitness_center),
+    Skill(name: 'Constitution', icon: Icons.favorite),
+    Skill(name: 'Intelligence', icon: Icons.psychology),
+    Skill(name: 'Wisdom', icon: Icons.lightbulb),
+    Skill(name: 'Charisma', icon: Icons.people),
+    Skill(name: 'Defense', icon: Icons.shield),
+    Skill(name: 'Attack', icon: Icons.sports_kabaddi),
+    Skill(name: 'Agility', icon: Icons.directions_run),
+    Skill(name: 'Cooking', icon: Icons.restaurant),
+    Skill(name: 'Crafting', icon: Icons.build),
+    Skill(name: 'Woodcutting', icon: Icons.nature),
+    Skill(name: 'Farming', icon: Icons.agriculture),
+    Skill(name: 'Dungoneering', icon: Icons.explore),
+    Skill(name: 'Prayer', icon: Icons.self_improvement),
+    Skill(name: 'Fishing', icon: Icons.catching_pokemon),
+    ];
+    await _saveSkills();
+    print('Skills initialized and saved.');
   }
+}
+
+
+Future<void> _loadSkills() async {
+  print('Loading skills...');
+  final prefs = await SharedPreferences.getInstance();
+  String? skillsJson = prefs.getString('skills');
+  if (skillsJson != null) {
+    print('Loaded skills JSON: $skillsJson');
+    List<dynamic> skillsList = jsonDecode(skillsJson);
+    setState(() {
+      skills = skillsList.map((skillJson) => Skill.fromJson(skillJson)).toList();
+    });
+    print('Skills loaded: ${skills.map((s) => '${s.name}: Lvl ${s.level}, XP ${s.xp}').join(', ')}');
+  } else {
+    print('No skills data found. Initializing new skills...');
+    await _initializeSkills();
+  }
+}
+
 
 
   Future<void> _saveSkills() async {
@@ -131,6 +178,14 @@ class _HomePageState extends State<HomePage> {
     return baseXp + levelBonus;
   }
 
+  void addExpToSkill(String skillName, int expAmount) {
+    var skill = skills.firstWhere((s) => s.name == skillName);
+    setState(() {
+      incrementSkill(skill);
+    });
+  }
+
+
   void _onSkillTap(Skill skill) {
     Navigator.push(
       context,
@@ -142,12 +197,12 @@ class _HomePageState extends State<HomePage> {
               incrementSkill(updatedSkill);
               checkAchievements(updatedSkill);
             });
-            _saveSkills();  // Call this after setState
+            _saveSkills();
           },
           achievements: achievements.where((a) => a.skillName == skill.name).toList(),
         ),
       ),
-    ).then((_) => _saveSkills());  // Also save when returning from the detail screen
+    ).then((_) => _saveSkills());
   }
 
 
@@ -163,15 +218,34 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-// In your build method:
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(title: Text('Skills')),
-    body: SkillsScreen(
-      skills: skills,
-      onSkillTap: _onSkillTap,
-    ),
-  );
-}
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Skills')),
+      body: Column(
+        children: [
+          ElevatedButton(
+            child: Text('Daily Quests'),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DailyQuestScreen(
+                    questManager: questManager,
+                    addExpToSkill: addExpToSkill,
+                  ),
+                ),
+              ).then((_) => setState(() {}));
+            },
+          ),
+          Expanded(
+            child: SkillsScreen(
+              skills: skills,
+              onSkillTap: _onSkillTap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

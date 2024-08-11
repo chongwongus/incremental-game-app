@@ -25,12 +25,23 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> {
   late Skill skill;
   final PersistenceService _persistenceService = PersistenceService();
 
-  @override
-  void initState() {
-    super.initState();
-    skill = widget.skill;
-    _loadSkillData();
-  }
+@override
+void initState() {
+  super.initState();
+  skill = widget.skill;
+  _loadSkillData();
+  
+  // Add a listener to update skill data when the screen gains focus
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final focusNode = FocusNode();
+    FocusScope.of(context).requestFocus(focusNode);
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        _loadSkillData();
+      }
+    });
+  });
+}
 
 Future<void> _loadSkillData() async {
   final skillData = await _persistenceService.getSkillData(skill.name);
@@ -43,11 +54,14 @@ Future<void> _loadSkillData() async {
 
 
   void _train() {
-    widget.onTrain(skill);
+    setState(() {
+      widget.onTrain(skill);
+      skill.updateLevel();
+    });
     _persistenceService.saveSkillData(skill.name, skill.level, skill.xp);
     print('Skill trained: ${skill.name}, Level: ${skill.level}, XP: ${skill.xp}');  // Debug print
-    setState(() {});
   }
+
 
 
   @override
@@ -101,7 +115,7 @@ Future<void> _loadSkillData() async {
                 child: Text('Train'),
                 onPressed: _train,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color.fromARGB(255, 238, 160, 234),
+                  backgroundColor: const Color(0xFF784CEF), // Corrected line
                   minimumSize: Size(double.infinity, 50),
                 ),
               ),
