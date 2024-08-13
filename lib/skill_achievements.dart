@@ -22,7 +22,8 @@ class SkillAchievements extends StatelessWidget {
         ),
         Container(
           height: 200, // Adjust as needed
-          child: AchievementsWidget(achievements: achievements, skillName: skillName),
+          child: AchievementsWidget(
+              achievements: achievements, skillName: skillName),
         ),
       ],
     );

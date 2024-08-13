@@ -17,4 +17,3 @@ class PersistenceService {
     return {'level': level, 'exp': exp};
   }
 }
-

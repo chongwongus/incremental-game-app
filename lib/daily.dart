@@ -18,20 +18,20 @@ class DailyQuest {
   });
 
   Map<String, dynamic> toJson() => {
-    'title': title,
-    'description': description,
-    'relatedSkill': relatedSkill,
-    'expReward': expReward,
-    'completionCount': completionCount,
-  };
+        'title': title,
+        'description': description,
+        'relatedSkill': relatedSkill,
+        'expReward': expReward,
+        'completionCount': completionCount,
+      };
 
   factory DailyQuest.fromJson(Map<String, dynamic> json) => DailyQuest(
-    title: json['title'],
-    description: json['description'],
-    relatedSkill: json['relatedSkill'],
-    expReward: json['expReward'],
-    completionCount: json['completionCount'] ?? 0,
-  );
+        title: json['title'],
+        description: json['description'],
+        relatedSkill: json['relatedSkill'],
+        expReward: json['expReward'],
+        completionCount: json['completionCount'] ?? 0,
+      );
 }
 
 class DailyQuestManager {
@@ -76,28 +76,33 @@ class DailyQuestManager {
     String? questsJson = prefs.getString('dailyQuests');
     if (questsJson != null) {
       List<dynamic> questsList = jsonDecode(questsJson);
-      dailyQuests = questsList.map((questJson) => DailyQuest.fromJson(questJson)).toList();
+      dailyQuests = questsList
+          .map((questJson) => DailyQuest.fromJson(questJson))
+          .toList();
     }
   }
 
   Future<void> saveQuests() async {
     final prefs = await SharedPreferences.getInstance();
-    String questsJson = jsonEncode(dailyQuests.map((quest) => quest.toJson()).toList());
+    String questsJson =
+        jsonEncode(dailyQuests.map((quest) => quest.toJson()).toList());
     await prefs.setString('dailyQuests', questsJson);
   }
 
-  Future<void> completeQuest(int index, Function(String, int) addExpToSkill) async {
+  Future<void> completeQuest(
+      int index, Function(String, int) updateSkill) async {
     dailyQuests[index].completionCount++;
-    addExpToSkill(dailyQuests[index].relatedSkill, dailyQuests[index].expReward);
+    updateSkill(
+        dailyQuests[index].relatedSkill, dailyQuests[index].expReward);
     await saveQuests();
   }
 }
 
 class DailyQuestScreen extends StatefulWidget {
   final DailyQuestManager questManager;
-  final Function(String, int) addExpToSkill;
+  final Function(String, int) updateSkill;  // Change this line
 
-  DailyQuestScreen({required this.questManager, required this.addExpToSkill});
+  DailyQuestScreen({required this.questManager, required this.updateSkill});
 
   @override
   _DailyQuestScreenState createState() => _DailyQuestScreenState();
@@ -123,7 +128,10 @@ class _DailyQuestScreenState extends State<DailyQuestScreen> {
                 ElevatedButton(
                   child: Text("Complete"),
                   onPressed: () async {
-                    await widget.questManager.completeQuest(index, widget.addExpToSkill);
+                    await widget.questManager.completeQuest(
+                      index,
+                      widget.updateSkill  // Use the passed updateSkill function
+                    );
                     setState(() {});
                   },
                 ),
@@ -135,3 +143,4 @@ class _DailyQuestScreenState extends State<DailyQuestScreen> {
     );
   }
 }
+

@@ -10,9 +10,6 @@ import 'achievement.dart';
 import 'daily.dart';
 import 'dart:async';
 
-
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SharedPreferences.getInstance();
@@ -37,9 +34,6 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-
-
-
 class _HomePageState extends State<HomePage> {
   List<Skill> skills = [
     Skill(name: 'Strength', icon: Icons.fitness_center),
@@ -61,8 +55,6 @@ class _HomePageState extends State<HomePage> {
   List<Achievement> achievements = [];
   DailyQuestManager questManager = DailyQuestManager();
 
-
-
   @override
   void initState() {
     super.initState();
@@ -72,7 +64,8 @@ class _HomePageState extends State<HomePage> {
     achievements = createAchievements();
     _loadDailyQuests();
     // Set up a timer to check and reset quests periodically
-    Timer.periodic(Duration(hours: 1), (Timer t) => questManager.checkAndResetQuests());
+    Timer.periodic(
+        Duration(hours: 1), (Timer t) => questManager.checkAndResetQuests());
   }
 
   Future<void> _loadDailyQuests() async {
@@ -80,83 +73,70 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
-  Future<void> _checkPersistedData() async {
-    final prefs = await SharedPreferences.getInstance();
-    print('Persisted test value: ${prefs.getString('test_key')}');
-    print('Persisted skills data: ${prefs.getString('skills')}');
-  }
-
-
-
-  Future<void> _testSharedPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('test_key', 'test_value');
-    print('Test value set: ${prefs.getString('test_key')}');
-  }
-
-  // Create a method to check the test value
-  Future<void> _checkTestValue() async {
-    final prefs = await SharedPreferences.getInstance();
-    print('Test value retrieved: ${prefs.getString('test_key')}');
-  }
-
   Future<void> _initializeSkills() async {
-  final prefs = await SharedPreferences.getInstance();
-  if (prefs.getString('skills') == null) {
-    print('Initializing skills for new user...');
-    skills = [
-    Skill(name: 'Strength', icon: Icons.fitness_center),
-    Skill(name: 'Constitution', icon: Icons.favorite),
-    Skill(name: 'Intelligence', icon: Icons.psychology),
-    Skill(name: 'Wisdom', icon: Icons.lightbulb),
-    Skill(name: 'Charisma', icon: Icons.people),
-    Skill(name: 'Defense', icon: Icons.shield),
-    Skill(name: 'Attack', icon: Icons.sports_kabaddi),
-    Skill(name: 'Agility', icon: Icons.directions_run),
-    Skill(name: 'Cooking', icon: Icons.restaurant),
-    Skill(name: 'Crafting', icon: Icons.build),
-    Skill(name: 'Woodcutting', icon: Icons.nature),
-    Skill(name: 'Farming', icon: Icons.agriculture),
-    Skill(name: 'Dungoneering', icon: Icons.explore),
-    Skill(name: 'Prayer', icon: Icons.self_improvement),
-    Skill(name: 'Fishing', icon: Icons.catching_pokemon),
-    ];
-    await _saveSkills();
-    print('Skills initialized and saved.');
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString('skills') == null) {
+      print('Initializing skills for new user...');
+      skills = [
+        Skill(name: 'Strength', icon: Icons.fitness_center),
+        Skill(name: 'Constitution', icon: Icons.favorite),
+        Skill(name: 'Intelligence', icon: Icons.psychology),
+        Skill(name: 'Wisdom', icon: Icons.lightbulb),
+        Skill(name: 'Charisma', icon: Icons.people),
+        Skill(name: 'Defense', icon: Icons.shield),
+        Skill(name: 'Attack', icon: Icons.sports_kabaddi),
+        Skill(name: 'Agility', icon: Icons.directions_run),
+        Skill(name: 'Cooking', icon: Icons.restaurant),
+        Skill(name: 'Crafting', icon: Icons.build),
+        Skill(name: 'Woodcutting', icon: Icons.nature),
+        Skill(name: 'Farming', icon: Icons.agriculture),
+        Skill(name: 'Dungoneering', icon: Icons.explore),
+        Skill(name: 'Prayer', icon: Icons.self_improvement),
+        Skill(name: 'Fishing', icon: Icons.catching_pokemon),
+      ];
+      await _saveSkills();
+      print('Skills initialized and saved.');
+    }
   }
-}
 
-
-Future<void> _loadSkills() async {
-  print('Loading skills...');
-  final prefs = await SharedPreferences.getInstance();
-  String? skillsJson = prefs.getString('skills');
-  if (skillsJson != null) {
-    print('Loaded skills JSON: $skillsJson');
-    List<dynamic> skillsList = jsonDecode(skillsJson);
-    setState(() {
-      skills = skillsList.map((skillJson) => Skill.fromJson(skillJson)).toList();
-    });
-    print('Skills loaded: ${skills.map((s) => '${s.name}: Lvl ${s.level}, XP ${s.xp}').join(', ')}');
-  } else {
-    print('No skills data found. Initializing new skills...');
-    await _initializeSkills();
+  Future<void> _loadSkills() async {
+    print('Loading skills...');
+    final prefs = await SharedPreferences.getInstance();
+    String? skillsJson = prefs.getString('skills');
+    if (skillsJson != null) {
+      print('Loaded skills JSON: $skillsJson');
+      List<dynamic> skillsList = jsonDecode(skillsJson);
+      setState(() {
+        skills =
+            skillsList.map((skillJson) => Skill.fromJson(skillJson)).toList();
+      });
+      print(
+          'Skills loaded: ${skills.map((s) => '${s.name}: Lvl ${s.level}, XP ${s.xp}').join(', ')}');
+    } else {
+      print('No skills data found. Initializing new skills...');
+      await _initializeSkills();
+    }
   }
-}
-
-
 
   Future<void> _saveSkills() async {
     print('Saving skills...');
     final prefs = await SharedPreferences.getInstance();
-    String skillsJson = jsonEncode(skills.map((skill) => skill.toJson()).toList());
+    String skillsJson =
+        jsonEncode(skills.map((skill) => skill.toJson()).toList());
     await prefs.setString('skills', skillsJson);
-    print('Skills saved: $skillsJson');  // Debug print
+    print('Skills saved: $skillsJson'); // Debug print
 
     // Verify the save immediately
     String? savedData = prefs.getString('skills');
     print('Verification - Skills in storage: $savedData');
+  }
 
+  void updateSkill(String skillName, int expAmount) {
+    setState(() {
+      var skill = skills.firstWhere((s) => s.name == skillName);
+      skill.addXp(expAmount);
+      _saveSkills(); // Save the updated skills
+    });
   }
 
   Future<void> _checkStoredData() async {
@@ -164,7 +144,6 @@ Future<void> _loadSkills() async {
     String? skillsJson = prefs.getString('skills');
     print('Stored skills data: $skillsJson');
   }
-
 
   Skill incrementSkill(Skill skill) {
     skill.addXp(calculateXpGain(skill));
@@ -185,7 +164,6 @@ Future<void> _loadSkills() async {
     });
   }
 
-
   void _onSkillTap(Skill skill) {
     Navigator.push(
       context,
@@ -194,21 +172,22 @@ Future<void> _loadSkills() async {
           skill: skill,
           onTrain: (updatedSkill) {
             setState(() {
-              incrementSkill(updatedSkill);
               checkAchievements(updatedSkill);
             });
             _saveSkills();
           },
-          achievements: achievements.where((a) => a.skillName == skill.name).toList(),
+          achievements:
+              achievements.where((a) => a.skillName == skill.name).toList(),
+          updateSkill: updateSkill,
+          calculateXpGain: calculateXpGain, // Add this line
         ),
       ),
     ).then((_) => _saveSkills());
   }
 
-
   void checkAchievements(Skill skill) {
     for (var achievement in achievements) {
-      if (achievement.skillName == skill.name && 
+      if (achievement.skillName == skill.name &&
           skill.level >= achievement.requiredLevel &&
           !achievement.unlocked) {
         achievement.unlocked = true;
@@ -232,7 +211,7 @@ Future<void> _loadSkills() async {
                 MaterialPageRoute(
                   builder: (context) => DailyQuestScreen(
                     questManager: questManager,
-                    addExpToSkill: addExpToSkill,
+                    updateSkill: updateSkill, // Pass the updateSkill function
                   ),
                 ),
               ).then((_) => setState(() {}));
