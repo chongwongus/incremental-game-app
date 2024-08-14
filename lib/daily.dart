@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'persistence_service.dart';
 
 class DailyQuest {
   final String title;
@@ -57,52 +57,68 @@ class DailyQuestManager {
     // Add more quests as needed
   ];
 
+  final Function(String, int) updateSkill;
+  final PersistenceService _persistenceService = PersistenceService();
+
+  DailyQuestManager({required this.updateSkill});
+
   Future<void> checkAndResetQuests() async {
     DateTime now = DateTime.now();
-    final prefs = await SharedPreferences.getInstance();
-    String? lastResetDate = prefs.getString('lastResetDate');
+    String? lastResetDate = await _persistenceService.getLastResetDate();
 
     if (lastResetDate == null || DateTime.parse(lastResetDate).day != now.day) {
       for (var quest in dailyQuests) {
         quest.completionCount = 0;
       }
       await saveQuests();
-      await prefs.setString('lastResetDate', now.toIso8601String());
+      await _persistenceService.saveLastResetDate(now.toIso8601String());
     }
   }
 
   Future<void> loadQuests() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? questsJson = prefs.getString('dailyQuests');
-    if (questsJson != null) {
-      List<dynamic> questsList = jsonDecode(questsJson);
-      dailyQuests = questsList
-          .map((questJson) => DailyQuest.fromJson(questJson))
-          .toList();
+    dailyQuests = await _persistenceService.getDailyQuests();
+    if (dailyQuests.isEmpty) {
+      // If no saved quests are found, use the default ones.
+      dailyQuests = [
+        DailyQuest(
+          title: "Read for 30 minutes",
+          description: "Improve your knowledge by reading for half an hour",
+          relatedSkill: "Intelligence",
+          expReward: 50,
+        ),
+        DailyQuest(
+          title: "Exercise for 20 minutes",
+          description: "Boost your fitness with a quick workout",
+          relatedSkill: "Strength",
+          expReward: 40,
+        ),
+        DailyQuest(
+          title: "Meditate for 10 minutes",
+          description: "Enhance your mental clarity through meditation",
+          relatedSkill: "Wisdom",
+          expReward: 30,
+        ),
+        // Add more quests as needed
+      ];
+      await saveQuests();
     }
   }
 
   Future<void> saveQuests() async {
-    final prefs = await SharedPreferences.getInstance();
-    String questsJson =
-        jsonEncode(dailyQuests.map((quest) => quest.toJson()).toList());
-    await prefs.setString('dailyQuests', questsJson);
+    await _persistenceService.saveDailyQuests(dailyQuests);
   }
 
-  Future<void> completeQuest(
-      int index, Function(String, int) updateSkill) async {
+  Future<void> completeQuest(int index) async {
     dailyQuests[index].completionCount++;
-    updateSkill(
-        dailyQuests[index].relatedSkill, dailyQuests[index].expReward);
+    updateSkill(dailyQuests[index].relatedSkill, dailyQuests[index].expReward);
     await saveQuests();
   }
 }
 
 class DailyQuestScreen extends StatefulWidget {
   final DailyQuestManager questManager;
-  final Function(String, int) updateSkill;  // Change this line
 
-  DailyQuestScreen({required this.questManager, required this.updateSkill});
+  DailyQuestScreen({required this.questManager});
 
   @override
   _DailyQuestScreenState createState() => _DailyQuestScreenState();
@@ -128,10 +144,7 @@ class _DailyQuestScreenState extends State<DailyQuestScreen> {
                 ElevatedButton(
                   child: Text("Complete"),
                   onPressed: () async {
-                    await widget.questManager.completeQuest(
-                      index,
-                      widget.updateSkill  // Use the passed updateSkill function
-                    );
+                    await widget.questManager.completeQuest(index);
                     setState(() {});
                   },
                 ),
@@ -143,4 +156,3 @@ class _DailyQuestScreenState extends State<DailyQuestScreen> {
     );
   }
 }
-

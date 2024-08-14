@@ -4,16 +4,21 @@ import 'dart:math' as math;
 class Skill {
   final String name;
   final IconData icon;
-  int level;
-  int xp;
+  final ValueNotifier<int> levelNotifier;
+  final ValueNotifier<int> xpNotifier;
 
-  Skill({required this.name, required this.icon, this.level = 1, this.xp = 0});
+  Skill({required this.name, required this.icon, int level = 1, int xp = 0})
+      : levelNotifier = ValueNotifier(level),
+        xpNotifier = ValueNotifier(xp);
+
+  int get level => levelNotifier.value;
+  int get xp => xpNotifier.value;
 
   Skill.from(Skill other)
       : name = other.name,
         icon = other.icon,
-        level = other.level,
-        xp = other.xp;
+        levelNotifier = ValueNotifier(other.level),
+        xpNotifier = ValueNotifier(other.xp);
 
   Map<String, dynamic> toJson() => {
         'name': name,
@@ -57,7 +62,7 @@ class Skill {
   }
 
   void updateLevel() {
-    level = calculateLevel();
+    levelNotifier.value = calculateLevel();
   }
 
   int get xpForNextLevel {
@@ -65,8 +70,18 @@ class Skill {
   }
 
   void addXp(int amount) {
-    xp += amount;
-    level = calculateLevel();
+    xpNotifier.value += amount;
+    updateLevel();
+  }
+
+  void setXp(int newXp) {
+    xpNotifier.value = newXp;
+    updateLevel();
+  }
+
+  void setLevel(int newLevel) {
+    levelNotifier.value = newLevel;
+    xpNotifier.value = getXpForLevel(newLevel);
   }
 }
 
