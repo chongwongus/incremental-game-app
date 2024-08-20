@@ -26,88 +26,122 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> {
     _loadSkillData();
   }
 
-Future<void> _loadSkillData() async {
-  final skill = await _persistenceService.getSkill(widget.skill.name);
-  if (skill != null) {
-    setState(() {
-      widget.skill.setXp(skill.xp);  // Update XP
-      widget.skill.setLevel(skill.level);  // Update level using the setLevel method
-    });
+  Future<void> _loadSkillData() async {
+    final skill = await _persistenceService.getSkill(widget.skill.name);
+    if (skill != null) {
+      setState(() {
+        widget.skill.setXp(skill.xp); // Update XP
+        widget.skill
+            .setLevel(skill.level); // Update level using the setLevel method
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.skill.name),
-      ),
-      body: ValueListenableBuilder<int>(
-        valueListenable: widget.skill.xpNotifier,
-        builder: (context, xp, child) {
-          double progressToNextLevel = xp == widget.skill.xpForNextLevel
-              ? 1.0
-              : (xp - widget.skill.getXpForLevel(widget.skill.level)) /
-                  (widget.skill.xpForNextLevel - widget.skill.getXpForLevel(widget.skill.level));
-
-          progressToNextLevel = progressToNextLevel.clamp(0.0, 1.0);
-
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(widget.skill.icon, size: 48, color: Colors.blue[800]),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ValueListenableBuilder<int>(
-                              valueListenable: widget.skill.levelNotifier,
-                              builder: (context, level, child) {
-                                return Text(
-                                  'Level $level',
-                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                                );
-                              },
-                            ),
-                            Text(
-                              'XP: $xp / ${widget.skill.xpForNextLevel}',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  LinearProgressIndicator(
-                    value: progressToNextLevel,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                  ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Achievements',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Container(
-                    height: 200,
-                    child: AchievementsWidget(
-                      achievements: widget.achievements,
-                      skillName: widget.skill.name,
-                    ),
-                  ),
-                ],
+      body: GestureDetector(
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity! > 0) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: CustomScrollView(
+          slivers: <Widget>[
+            SliverAppBar(
+              expandedHeight: 200.0,
+              floating: false,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                title: Text(widget.skill.name),
+                background: Hero(
+                  tag: 'skill_${widget.skill.name}',
+                  child:
+                      Icon(widget.skill.icon, size: 100, color: Colors.white),
+                ),
               ),
             ),
-          );
-        },
+            SliverList(
+              delegate: SliverChildListDelegate([
+                ValueListenableBuilder<int>(
+                  valueListenable: widget.skill.xpNotifier,
+                  builder: (context, xp, child) {
+                    double progressToNextLevel = xp ==
+                            widget.skill.xpForNextLevel
+                        ? 1.0
+                        : (xp -
+                                widget.skill
+                                    .getXpForLevel(widget.skill.level)) /
+                            (widget.skill.xpForNextLevel -
+                                widget.skill.getXpForLevel(widget.skill.level));
+
+                    progressToNextLevel = progressToNextLevel.clamp(0.0, 1.0);
+
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(widget.skill.icon,
+                                  size: 48, color: Colors.blue[800]),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ValueListenableBuilder<int>(
+                                      valueListenable:
+                                          widget.skill.levelNotifier,
+                                      builder: (context, level, child) {
+                                        return Text(
+                                          'Level $level',
+                                          style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold),
+                                        );
+                                      },
+                                    ),
+                                    Text(
+                                      'XP: $xp / ${widget.skill.xpForNextLevel}',
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 16),
+                          LinearProgressIndicator(
+                            value: progressToNextLevel,
+                            backgroundColor: Colors.grey[300],
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.green),
+                          ),
+                          SizedBox(height: 24),
+                          Text(
+                            'Achievements',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 8),
+                          Container(
+                            height: 200,
+                            child: AchievementsWidget(
+                              achievements: widget.achievements,
+                              skillName: widget.skill.name,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ]),
+            ),
+          ],
+        ),
       ),
     );
   }

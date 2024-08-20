@@ -8,6 +8,7 @@ import 'skill_achievements.dart';
 import 'achievements_page.dart';
 import 'achievement.dart';
 import 'daily.dart';
+import 'profile.dart';
 import 'dart:async';
 
 void main() async {
@@ -33,11 +34,224 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
+class SkillSearchDelegate extends SearchDelegate<Skill> {
+  final List<Skill> skills;
+  final Function(Skill) onSkillTap;
+
+  SkillSearchDelegate({required this.skills, required this.onSkillTap});
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, skills[0]);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    final results = skills
+        .where(
+            (skill) => skill.name.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(results[index].name),
+          leading: Icon(results[index].icon),
+          onTap: () {
+            onSkillTap(results[index]);
+            close(context, results[index]);
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final suggestions = skills
+        .where(
+            (skill) => skill.name.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(suggestions[index].name),
+          leading: Icon(suggestions[index].icon),
+          onTap: () {
+            query = suggestions[index].name;
+            showResults(context);
+          },
+        );
+      },
+    );
+  }
+}
+
+class SkillFilterWidget extends StatefulWidget {
+  final List<Skill> skills;
+  final Function(List<Skill>) onFilterApplied;
+
+  SkillFilterWidget({required this.skills, required this.onFilterApplied});
+
+  @override
+  _SkillFilterWidgetState createState() => _SkillFilterWidgetState();
+}
+
+class _SkillFilterWidgetState extends State<SkillFilterWidget> {
+  List<String> selectedSkills = [];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Filter Skills',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.skills.map((skill) {
+              return FilterChip(
+                label: Text(skill.name),
+                selected: selectedSkills.contains(skill.name),
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      selectedSkills.add(skill.name);
+                    } else {
+                      selectedSkills.remove(skill.name);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 16),
+          ElevatedButton(
+            child: Text('Apply Filter'),
+            onPressed: () {
+              List<Skill> filteredSkills = selectedSkills.isEmpty
+                  ? widget.skills
+                  : widget.skills
+                      .where((skill) => selectedSkills.contains(skill.name))
+                      .toList();
+              widget.onFilterApplied(filteredSkills);
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AddQuestDialog extends StatefulWidget {
+  final Function(DailyQuest) onQuestAdded;
+
+  AddQuestDialog({required this.onQuestAdded});
+
+  @override
+  _AddQuestDialogState createState() => _AddQuestDialogState();
+}
+
+class _AddQuestDialogState extends State<AddQuestDialog> {
+  final _formKey = GlobalKey<FormState>();
+  String title = '';
+  String description = '';
+  String relatedSkill = '';
+  int expReward = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Add New Quest'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Title'),
+              validator: (value) =>
+                  value!.isEmpty ? 'Please enter a title' : null,
+              onSaved: (value) => title = value!,
+            ),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Description'),
+              validator: (value) =>
+                  value!.isEmpty ? 'Please enter a description' : null,
+              onSaved: (value) => description = value!,
+            ),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Related Skill'),
+              validator: (value) =>
+                  value!.isEmpty ? 'Please enter a related skill' : null,
+              onSaved: (value) => relatedSkill = value!,
+            ),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'XP Reward'),
+              keyboardType: TextInputType.number,
+              validator: (value) =>
+                  value!.isEmpty ? 'Please enter an XP reward' : null,
+              onSaved: (value) => expReward = int.parse(value!),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          child: Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        ElevatedButton(
+          child: Text('Add'),
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              _formKey.currentState!.save();
+              widget.onQuestAdded(DailyQuest(
+                title: title,
+                description: description,
+                relatedSkill: relatedSkill,
+                expReward: expReward,
+              ));
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class _HomePageState extends State<HomePage> {
   List<Skill> skills = [];
   List<Achievement> achievements = [];
   late DailyQuestManager questManager;
   final PersistenceService _persistenceService = PersistenceService();
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -49,7 +263,8 @@ class _HomePageState extends State<HomePage> {
       _loadDailyQuests();
     });
     achievements = createAchievements();
-    Timer.periodic(Duration(hours: 1), (Timer t) => questManager.checkAndResetQuests());
+    Timer.periodic(
+        Duration(hours: 1), (Timer t) => questManager.checkAndResetQuests());
   }
 
   Future<void> _loadDailyQuests() async {
@@ -98,13 +313,14 @@ class _HomePageState extends State<HomePage> {
       var skill = skills.firstWhere((s) => s.name == skillName);
       skill.addXp(expAmount);
       checkAchievements(skill);
-      _persistenceService.saveSkills(skills);  // Save updated skills
+      _persistenceService.saveSkills(skills); // Save updated skills
     });
   }
 
   Future<void> _checkStoredData() async {
     skills = await _persistenceService.getSkills();
-    print('Stored skills data: ${jsonEncode(skills.map((skill) => skill.toJson()).toList())}');
+    print(
+        'Stored skills data: ${jsonEncode(skills.map((skill) => skill.toJson()).toList())}');
   }
 
   Skill incrementSkill(Skill skill) {
@@ -132,7 +348,8 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(
         builder: (context) => SkillDetailScreen(
           skill: skill,
-          achievements: achievements.where((a) => a.skillName == skill.name).toList(),
+          achievements:
+              achievements.where((a) => a.skillName == skill.name).toList(),
         ),
       ),
     );
@@ -150,32 +367,88 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  void _searchSkills() {
+    showSearch(
+      context: context,
+      delegate: SkillSearchDelegate(skills: skills, onSkillTap: _onSkillTap),
+    );
+  }
+
+  void _filterSkills() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SkillFilterWidget(
+          skills: skills,
+          onFilterApplied: (List<Skill> filteredSkills) {
+            setState(() {
+              skills = filteredSkills;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  void _addNewQuest() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AddQuestDialog(
+          onQuestAdded: (DailyQuest newQuest) {
+            questManager.dailyQuests.add(newQuest);
+            questManager.saveQuests();
+            setState(() {});
+          },
+        );
+      },
+    );
+  }
+
+  Widget _getPage(int index) {
+    switch (index) {
+      case 0:
+        return SkillsScreen(skills: skills, onSkillTap: _onSkillTap);
+      case 1:
+        return DailyQuestScreen(questManager: questManager);
+      case 2:
+        return ProfileScreen();
+      default:
+        return SkillsScreen(skills: skills, onSkillTap: _onSkillTap);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Skills')),
-      body: Column(
-        children: [
-          ElevatedButton(
-            child: Text('Daily Quests'),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DailyQuestScreen(
-                    questManager: questManager,
-                  ),
-                ),
-              ).then((_) => setState(() {}));
-            },
-          ),
-          Expanded(
-            child: SkillsScreen(
-              skills: skills,
-              onSkillTap: _onSkillTap,
-            ),
-          ),
+      appBar: AppBar(
+        title: Text('Life Stats Tracker'),
+        actions: [
+          IconButton(icon: Icon(Icons.search), onPressed: _searchSkills),
+          IconButton(icon: Icon(Icons.filter_list), onPressed: _filterSkills),
         ],
+      ),
+      body: _getPage(_selectedIndex),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+              icon: Icon(Icons.fitness_center), label: 'Skills'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.assignment), label: 'Quests'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addNewQuest,
+        child: Icon(Icons.add),
       ),
     );
   }
@@ -189,18 +462,25 @@ class SkillsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 2.5,
-      ),
-      itemCount: skills.length,
-      itemBuilder: (context, index) {
-        return SkillTile(
-          skill: skills[index],
-          onTap: () => onSkillTap(skills[index]),
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Implement refresh logic here
+        // For example, you could reload skills from persistence
+        await Future.delayed(Duration(seconds: 1)); // Simulating a refresh
       },
+      child: GridView.builder(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 2.5,
+        ),
+        itemCount: skills.length,
+        itemBuilder: (context, index) {
+          return SkillTile(
+            skill: skills[index],
+            onTap: () => onSkillTap(skills[index]),
+          );
+        },
+      ),
     );
   }
 }
@@ -222,7 +502,10 @@ class SkillTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(skill.icon, size: 24, color: Colors.blue[800]),
+              Hero(
+                tag: 'skill_${skill.name}',
+                child: Icon(skill.icon, size: 24, color: Colors.blue[800]),
+              ),
               SizedBox(height: 4),
               ValueListenableBuilder<int>(
                 valueListenable: skill.levelNotifier,
@@ -240,3 +523,4 @@ class SkillTile extends StatelessWidget {
     );
   }
 }
+

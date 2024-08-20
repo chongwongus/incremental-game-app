@@ -102,6 +102,11 @@ class DailyQuestManager {
       ];
       await saveQuests();
     }
+
+    void addQuest(DailyQuest quest) {
+      dailyQuests.add(quest);
+      saveQuests();
+    }
   }
 
   Future<void> saveQuests() async {
