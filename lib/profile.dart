@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'skill.dart';
 import 'persistence_service.dart';
+import 'character.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -10,16 +11,17 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final PersistenceService _persistenceService = PersistenceService();
   List<Skill> skills = [];
-  String username = "Player"; // You can implement a way to set/change this
+  Character? character;
 
   @override
   void initState() {
     super.initState();
-    _loadSkills();
+    _loadData();
   }
 
-  Future<void> _loadSkills() async {
+  Future<void> _loadData() async {
     skills = await _persistenceService.getSkills();
+    character = await _persistenceService.getCharacter();
     setState(() {});
   }
 
@@ -40,15 +42,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             CircleAvatar(
               radius: 50,
               child: Text(
-                username[0].toUpperCase(),
+                character?.name.substring(0, 1).toUpperCase() ?? 'P',
                 style: TextStyle(fontSize: 40),
               ),
             ),
             SizedBox(height: 10),
             Text(
-              username,
+              character?.name ?? 'Player',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
+            if (character != null) ...[
+              SizedBox(height: 10),
+              Text(
+                'Class: ${character!.baseClass.toString().split('.').last}',
+                style: TextStyle(fontSize: 18),
+              ),
+              Text(
+                'Job: ${character!.job}',
+                style: TextStyle(fontSize: 18),
+              ),
+            ],
             SizedBox(height: 20),
             Text(
               'Total Level: ${_calculateTotalLevel()}',

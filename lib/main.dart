@@ -8,7 +8,11 @@ import 'skill_achievements.dart';
 import 'achievements_page.dart';
 import 'achievement.dart';
 import 'daily.dart';
+import 'quests.dart';
 import 'profile.dart';
+import 'combat_screen.dart';
+import 'character_creation.dart';
+import 'character.dart';
 import 'dart:async';
 
 void main() async {
@@ -23,6 +27,23 @@ class MyApp extends StatelessWidget {
       title: 'Life Stats Tracker',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        brightness: Brightness.light,
+        fontFamily: 'Roboto',
+        cardTheme: CardTheme(
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      darkTheme: ThemeData(
+        primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
+        fontFamily: 'Roboto',
+        cardTheme: CardTheme(
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
       home: HomePage(),
     );
@@ -168,103 +189,34 @@ class _SkillFilterWidgetState extends State<SkillFilterWidget> {
   }
 }
 
-class AddQuestDialog extends StatefulWidget {
-  final Function(DailyQuest) onQuestAdded;
-
-  AddQuestDialog({required this.onQuestAdded});
-
-  @override
-  _AddQuestDialogState createState() => _AddQuestDialogState();
-}
-
-class _AddQuestDialogState extends State<AddQuestDialog> {
-  final _formKey = GlobalKey<FormState>();
-  String title = '';
-  String description = '';
-  String relatedSkill = '';
-  int expReward = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Add New Quest'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Title'),
-              validator: (value) =>
-                  value!.isEmpty ? 'Please enter a title' : null,
-              onSaved: (value) => title = value!,
-            ),
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Description'),
-              validator: (value) =>
-                  value!.isEmpty ? 'Please enter a description' : null,
-              onSaved: (value) => description = value!,
-            ),
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Related Skill'),
-              validator: (value) =>
-                  value!.isEmpty ? 'Please enter a related skill' : null,
-              onSaved: (value) => relatedSkill = value!,
-            ),
-            TextFormField(
-              decoration: InputDecoration(labelText: 'XP Reward'),
-              keyboardType: TextInputType.number,
-              validator: (value) =>
-                  value!.isEmpty ? 'Please enter an XP reward' : null,
-              onSaved: (value) => expReward = int.parse(value!),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          child: Text('Cancel'),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        ElevatedButton(
-          child: Text('Add'),
-          onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              _formKey.currentState!.save();
-              widget.onQuestAdded(DailyQuest(
-                title: title,
-                description: description,
-                relatedSkill: relatedSkill,
-                expReward: expReward,
-              ));
-              Navigator.of(context).pop();
-            }
-          },
-        ),
-      ],
-    );
-  }
-}
-
 class _HomePageState extends State<HomePage> {
   List<Skill> skills = [];
   List<Achievement> achievements = [];
-  late DailyQuestManager questManager;
+  late DailyQuestManager dailyQuestManager;
+  late QuestManager questManager;
   final PersistenceService _persistenceService = PersistenceService();
   int _selectedIndex = 0;
+  Character? playerCharacter;
 
   @override
   void initState() {
     super.initState();
     _loadSkills().then((_) {
       setState(() {
-        questManager = DailyQuestManager(updateSkill: updateSkill);
+        dailyQuestManager = DailyQuestManager(updateSkill: updateSkill);
+        dailyQuestManager.initialize();
+        questManager = QuestManager(updateSkill: updateSkill);
+        questManager.initialize();
       });
-      _loadDailyQuests();
     });
     achievements = createAchievements();
-    Timer.periodic(
-        Duration(hours: 1), (Timer t) => questManager.checkAndResetQuests());
+    _loadCharacter();
+  }
+
+  @override
+  void dispose() {
+    _persistenceService.saveCharacter(playerCharacter!);
+    super.dispose();
   }
 
   Future<void> _loadDailyQuests() async {
@@ -314,31 +266,6 @@ class _HomePageState extends State<HomePage> {
       skill.addXp(expAmount);
       checkAchievements(skill);
       _persistenceService.saveSkills(skills); // Save updated skills
-    });
-  }
-
-  Future<void> _checkStoredData() async {
-    skills = await _persistenceService.getSkills();
-    print(
-        'Stored skills data: ${jsonEncode(skills.map((skill) => skill.toJson()).toList())}');
-  }
-
-  Skill incrementSkill(Skill skill) {
-    skill.addXp(calculateXpGain(skill));
-    _persistenceService.saveSkills(skills);
-    return skill;
-  }
-
-  int calculateXpGain(Skill skill) {
-    int baseXp = 10;
-    int levelBonus = (skill.level / 10).floor();
-    return baseXp + levelBonus;
-  }
-
-  void addExpToSkill(String skillName, int expAmount) {
-    var skill = skills.firstWhere((s) => s.name == skillName);
-    setState(() {
-      incrementSkill(skill);
     });
   }
 
@@ -396,59 +323,105 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _addNewQuest() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AddQuestDialog(
-          onQuestAdded: (DailyQuest newQuest) {
-            questManager.dailyQuests.add(newQuest);
-            questManager.saveQuests();
-            setState(() {});
-          },
-        );
-      },
+  Future<void> _loadCharacter() async {
+    playerCharacter = await _persistenceService.getCharacter();
+    if (playerCharacter == null) {
+      _createNewCharacter();
+    } else {
+      setState(() {});
+    }
+  }
+
+  Future<void> _createNewCharacter() async {
+    final character = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => CharacterCreationScreen()),
     );
+    if (character != null) {
+      setState(() {
+        playerCharacter = character;
+      });
+      await _persistenceService.saveCharacter(playerCharacter!);
+    }
   }
 
   Widget _getPage(int index) {
     switch (index) {
       case 0:
-        return SkillsScreen(skills: skills, onSkillTap: _onSkillTap);
+        return SkillsScreen(
+          skills: skills,
+          onSkillTap: _onSkillTap,
+          dailyQuestManager: dailyQuestManager,
+          questManager: questManager,
+        );
       case 1:
-        return DailyQuestScreen(questManager: questManager);
+        return QuestsScreen(
+          dailyQuestManager: dailyQuestManager,
+          questManager: questManager,
+        );
       case 2:
         return ProfileScreen();
+      case 3:
+        return playerCharacter != null
+            ? CombatScreen(character: playerCharacter!)
+            : Center(child: Text('Create a character to access combat'));
       default:
-        return SkillsScreen(skills: skills, onSkillTap: _onSkillTap);
+        return SkillsScreen(
+          skills: skills,
+          onSkillTap: _onSkillTap,
+          dailyQuestManager: dailyQuestManager,
+          questManager: questManager,
+        );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Life Stats Tracker'),
-        actions: [
-          IconButton(icon: Icon(Icons.search), onPressed: _searchSkills),
-          IconButton(icon: Icon(Icons.filter_list), onPressed: _filterSkills),
-        ],
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Life Stats Tracker',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.search),
+                    onPressed: () {/* Implement search functionality */},
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _getPage(_selectedIndex),
+            ),
+          ],
+        ),
       ),
-      body: _getPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Theme.of(context).primaryColor,
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Theme.of(context).cardColor,
+        items: [
           BottomNavigationBarItem(
               icon: Icon(Icons.fitness_center), label: 'Skills'),
           BottomNavigationBarItem(
               icon: Icon(Icons.assignment), label: 'Quests'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.sports_kabaddi), label: 'Combat'),
         ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addNewQuest,
-        child: Icon(Icons.add),
       ),
     );
   }
@@ -457,29 +430,320 @@ class _HomePageState extends State<HomePage> {
 class SkillsScreen extends StatelessWidget {
   final List<Skill> skills;
   final Function(Skill) onSkillTap;
+  final DailyQuestManager dailyQuestManager;
+  final QuestManager questManager;
 
-  SkillsScreen({required this.skills, required this.onSkillTap});
+  SkillsScreen({
+    required this.skills,
+    required this.onSkillTap,
+    required this.dailyQuestManager,
+    required this.questManager,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        // Implement refresh logic here
-        // For example, you could reload skills from persistence
-        await Future.delayed(Duration(seconds: 1)); // Simulating a refresh
-      },
-      child: GridView.builder(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 2.5,
+    return ListView(
+      padding: EdgeInsets.all(16),
+      children: [
+        DailyQuestsWidget(
+          dailyQuestManager: dailyQuestManager,
+          questManager: questManager,
         ),
-        itemCount: skills.length,
-        itemBuilder: (context, index) {
-          return SkillTile(
-            skill: skills[index],
-            onTap: () => onSkillTap(skills[index]),
-          );
-        },
+        SizedBox(height: 24),
+        ActiveQuestsWidget(questManager: questManager),
+        Text(
+          'Your Skills',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 0.85,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: skills.length,
+          itemBuilder: (context, index) {
+            return SkillTile(
+              skill: skills[index],
+              onTap: () => onSkillTap(skills[index]),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class DailyQuestsWidget extends StatefulWidget {
+  final DailyQuestManager dailyQuestManager;
+  final QuestManager questManager;
+
+  DailyQuestsWidget({
+    required this.dailyQuestManager,
+    required this.questManager,
+  });
+
+  @override
+  _DailyQuestsWidgetState createState() => _DailyQuestsWidgetState();
+}
+
+class _DailyQuestsWidgetState extends State<DailyQuestsWidget> {
+  late Timer _timer;
+  String _timeUntilReset = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTimeUntilReset();
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      _updateTimeUntilReset();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _updateTimeUntilReset() {
+    Duration timeLeft = widget.dailyQuestManager.timeUntilReset();
+    setState(() {
+      _timeUntilReset = _formatDuration(timeLeft);
+    });
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    List<DailyQuest> incompleteQuests = widget.dailyQuestManager.dailyQuests
+        .where((quest) => !quest.isCompleted)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Welcome',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Resets in: $_timeUntilReset',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        if (incompleteQuests.isEmpty)
+          Card(
+            color: Colors.blue[100],
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'All daily quests completed! Great job!',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          )
+        else
+          ...incompleteQuests.take(3).map((quest) => DailyQuestCard(
+                quest: quest,
+                onComplete: () async {
+                  await widget.dailyQuestManager.completeQuest(
+                      widget.dailyQuestManager.dailyQuests.indexOf(quest));
+                  setState(() {});
+                },
+              )),
+      ],
+    );
+  }
+}
+
+class DailyQuestCard extends StatelessWidget {
+  final DailyQuest quest;
+  final VoidCallback onComplete;
+
+  DailyQuestCard({required this.quest, required this.onComplete});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.green[100],
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              quest.title,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 4),
+            Text(quest.description),
+            SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: onComplete,
+              child: Text('Complete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class QuestsScreen extends StatelessWidget {
+  final DailyQuestManager dailyQuestManager;
+  final QuestManager questManager;
+
+  QuestsScreen({
+    required this.dailyQuestManager,
+    required this.questManager,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.all(16),
+      children: [
+        Text(
+          'Daily Quests',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 12),
+        DailyQuestsWidget(
+          dailyQuestManager: dailyQuestManager,
+          questManager: questManager,
+        ),
+        SizedBox(height: 24),
+        Text(
+          'Active Quests',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 12),
+        ActiveQuestsWidget(questManager: questManager),
+        SizedBox(height: 24),
+        Text(
+          'Available Quests',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 12),
+        AvailableQuestsWidget(questManager: questManager),
+      ],
+    );
+  }
+}
+
+class ActiveQuestsWidget extends StatelessWidget {
+  final QuestManager questManager;
+
+  ActiveQuestsWidget({required this.questManager});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var quest in questManager.activeQuests)
+          ActiveQuestCard(quest: quest),
+      ],
+    );
+  }
+}
+
+class ActiveQuestCard extends StatelessWidget {
+  final Quest quest;
+
+  ActiveQuestCard({required this.quest});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(quest.title,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text(quest.description),
+            SizedBox(height: 8),
+            LinearProgressIndicator(value: quest.progress),
+            SizedBox(height: 4),
+            Text('${(quest.progress * 100).toStringAsFixed(1)}% complete'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AvailableQuestsWidget extends StatelessWidget {
+  final QuestManager questManager;
+
+  AvailableQuestsWidget({required this.questManager});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var quest in questManager.availableQuests)
+          AvailableQuestCard(
+            quest: quest,
+            onStart: () => questManager.startQuest(quest.id),
+          ),
+      ],
+    );
+  }
+}
+
+class AvailableQuestCard extends StatelessWidget {
+  final Quest quest;
+  final VoidCallback onStart;
+
+  AvailableQuestCard({required this.quest, required this.onStart});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(quest.title,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text(quest.description),
+            SizedBox(height: 8),
+            Text('Difficulty: ${quest.difficulty.toString().split('.').last}'),
+            Text('Duration: ${quest.duration.inDays} days'),
+            Text('Reward: ${quest.expReward} ${quest.relatedSkill} XP'),
+            SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: onStart,
+              child: Text('Start Quest'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -496,23 +760,44 @@ class SkillTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Card(
-        elevation: 2,
-        child: Container(
+        child: Padding(
           padding: EdgeInsets.all(8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Hero(
                 tag: 'skill_${skill.name}',
-                child: Icon(skill.icon, size: 24, color: Colors.blue[800]),
+                child: Icon(skill.icon,
+                    size: 32, color: Theme.of(context).primaryColor),
               ),
               SizedBox(height: 4),
+              Text(
+                skill.name,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 2),
               ValueListenableBuilder<int>(
                 valueListenable: skill.levelNotifier,
                 builder: (context, level, child) {
                   return Text(
-                    '$level/99',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    'Level $level',
+                    style: TextStyle(fontSize: 11),
+                  );
+                },
+              ),
+              SizedBox(height: 2),
+              ValueListenableBuilder<int>(
+                valueListenable: skill.xpNotifier,
+                builder: (context, xp, child) {
+                  double progress = xp / skill.xpForNextLevel;
+                  return LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.grey[300],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).primaryColor),
                   );
                 },
               ),
@@ -523,4 +808,3 @@ class SkillTile extends StatelessWidget {
     );
   }
 }
-

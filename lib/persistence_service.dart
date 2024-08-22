@@ -3,9 +3,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'skill.dart';
 import 'achievement.dart';
 import 'daily.dart';
+import 'character.dart';
 
 class PersistenceService {
   static const String SKILLS_KEY = 'skills';
+
+  Future<String?> getString(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+
+  Future<List<dynamic>> getObjectList(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonString = prefs.getString(key);
+    if (jsonString != null) {
+      return json.decode(jsonString);
+    }
+    return [];
+  }
+
+  Future<void> saveObjectList(
+      String key, List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, json.encode(list));
+  }
 
   Future<List<Skill>> getSkills() async {
     final prefs = await SharedPreferences.getInstance();
@@ -81,5 +102,19 @@ class PersistenceService {
     } catch (e) {
       return null; // Return null if no matching skill is found
     }
+  }
+
+  Future<void> saveCharacter(Character character) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('character', jsonEncode(character.toJson()));
+  }
+
+  Future<Character?> getCharacter() async {
+    final prefs = await SharedPreferences.getInstance();
+    final characterJson = prefs.getString('character');
+    if (characterJson != null) {
+      return Character.fromJson(jsonDecode(characterJson));
+    }
+    return null;
   }
 }
