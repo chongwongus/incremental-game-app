@@ -17,6 +17,7 @@ import 'character.dart';
 import 'quest_widgets.dart';
 import 'idle_manager.dart';
 import 'idle_screen.dart';
+import 'resource.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,10 +28,17 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<Character>.value(
-          value: character ?? Character(name: '', baseClass: BaseClass.melee, skills: {}),
+          value: character ??
+              Character(name: '', baseClass: BaseClass.melee, skills: {}),
         ),
-        ChangeNotifierProvider<IdleManager>(
-          create: (context) => IdleManager(context.read<Character>()),
+        ChangeNotifierProvider(create: (_) => ResourceManager()),
+        ChangeNotifierProxyProvider2<Character, ResourceManager, IdleManager>(
+          create: (context) => IdleManager(
+            context.read<Character>(),
+            context.read<ResourceManager>(),
+          ),
+          update: (context, character, resourceManager, previous) =>
+              previous ?? IdleManager(character, resourceManager),
         ),
         Provider.value(value: persistenceService),
       ],
@@ -54,7 +62,8 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Roboto',
         cardTheme: CardTheme(
           elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       darkTheme: ThemeData(
@@ -63,7 +72,8 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Roboto',
         cardTheme: CardTheme(
           elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       home: initialCharacter == null ? CharacterCreationScreen() : HomePage(),

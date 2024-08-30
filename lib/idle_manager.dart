@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'character.dart';
+import 'resource.dart';
 
 class IdleManager extends ChangeNotifier {
   final Character character;
+  final ResourceManager resourceManager;
   String? activeSkill;
   Timer? activeTimer;
   double progress = 0.0;
 
-  IdleManager(this.character);
+  IdleManager(this.character, this.resourceManager);
 
   void startIdleAction(String skillName) {
     if (activeSkill != null) {
@@ -23,6 +25,7 @@ class IdleManager extends ChangeNotifier {
       if (progress >= 1.0) {
         int xpGained = calculateXpGain(skillName);
         character.improveSkill(skillName, xpGained);
+        gatherResources(skillName);
         progress = 0.0;
       }
       notifyListeners();
@@ -39,8 +42,21 @@ class IdleManager extends ChangeNotifier {
   }
 
   int calculateXpGain(String skillName) {
-    // This is a simple calculation, you can make it more complex based on skill level, equipment, etc.
     return 10 + (character.skills[skillName]?.level ?? 0);
+  }
+
+  void gatherResources(String skillName) {
+    switch (skillName) {
+      case 'Woodcutting':
+        resourceManager.addResource('Wood', 1);
+        break;
+      case 'Mining':
+        resourceManager.addResource('Ore', 1);
+        break;
+      case 'Fishing':
+        resourceManager.addResource('Fish', 1);
+        break;
+    }
   }
 
   @override
