@@ -1,20 +1,28 @@
 // character.dart
+
+import 'package:flutter/foundation.dart';
 import 'skill.dart';
 
 enum BaseClass { melee, ranged, magic }
 
-class Character {
+class Character extends ChangeNotifier {
   String name;
   BaseClass baseClass;
   Map<String, Skill> skills;
   String job;
+  int level;
+  int experience;
+  Map<String, int> resources;
 
   Character({
     required this.name,
     required this.baseClass,
     required this.skills,
     this.job = 'Novice',
-  });
+    this.level = 1,
+    this.experience = 0,
+    Map<String, int>? resources,
+  }) : resources = resources ?? {'Wood': 0, 'Fish': 0, 'Ore': 0};
 
   int get attackPower {
     switch (baseClass) {
@@ -35,26 +43,70 @@ class Character {
     return skills['Constitution']!.level * 10;
   }
 
-  // Add toJson method
+  void addExperience(int amount) {
+    experience += amount;
+    while (experience >= experienceForNextLevel) {
+      levelUp();
+    }
+    notifyListeners();
+  }
+
+  void levelUp() {
+    level++;
+    experience -= experienceForNextLevel;
+    notifyListeners();
+  }
+
+  int get experienceForNextLevel => level * 100;
+
+  double get levelProgress => experience / experienceForNextLevel;
+
+  void improveSkill(String skillName, int amount) {
+    if (skills.containsKey(skillName)) {
+      skills[skillName]!.addXp(amount);
+      notifyListeners();
+    }
+  }
+
+  void gatherResource(String resourceName, int amount) {
+    resources[resourceName] = (resources[resourceName] ?? 0) + amount;
+    notifyListeners();
+  }
+
+    void updateFrom(Character other) {
+    name = other.name;
+    baseClass = other.baseClass;
+    skills = Map.from(other.skills);
+    // Update any other properties as needed
+    notifyListeners();
+  }
+
+
+  // Update toJson and fromJson methods to include new properties
   Map<String, dynamic> toJson() {
     return {
       'name': name,
       'baseClass': baseClass.toString().split('.').last,
       'skills': skills.map((key, value) => MapEntry(key, value.toJson())),
       'job': job,
+      'level': level,
+      'experience': experience,
+      'resources': resources,
     };
   }
 
-  // Add fromJson method
   static Character fromJson(Map<String, dynamic> json) {
     return Character(
       name: json['name'],
-      baseClass: BaseClass.values.firstWhere(
-          (e) => e.toString().split('.').last == json['baseClass']),
+      baseClass: BaseClass.values
+          .firstWhere((e) => e.toString().split('.').last == json['baseClass']),
       skills: (json['skills'] as Map<String, dynamic>).map(
         (key, value) => MapEntry(key, Skill.fromJson(value)),
       ),
       job: json['job'],
+      level: json['level'] ?? 1,
+      experience: json['experience'] ?? 0,
+      resources: Map<String, int>.from(json['resources'] ?? {}),
     );
   }
 }
