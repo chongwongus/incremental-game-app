@@ -2,6 +2,8 @@
 
 import 'package:flutter/foundation.dart';
 import 'skill.dart';
+import 'prestige_system.dart';
+import 'talent_system.dart';
 
 enum BaseClass { melee, ranged, magic }
 
@@ -13,6 +15,8 @@ class Character extends ChangeNotifier {
   int level;
   int experience;
   Map<String, int> resources;
+  int prestigeLevel;
+  PlayerTalents talents;
 
   Character({
     required this.name,
@@ -22,7 +26,10 @@ class Character extends ChangeNotifier {
     this.level = 1,
     this.experience = 0,
     Map<String, int>? resources,
-  }) : resources = resources ?? {'Wood': 0, 'Fish': 0, 'Ore': 0};
+    this.prestigeLevel = 0,
+    PlayerTalents? talents,
+  })  : resources = resources ?? {'Wood': 0, 'Fish': 0, 'Ore': 0},
+        talents = talents ?? PlayerTalents();
 
   int get attackPower {
     switch (baseClass) {
@@ -44,7 +51,17 @@ class Character extends ChangeNotifier {
   }
 
   void addExperience(int amount) {
-    experience += amount;
+    PrestigeSystem prestigeSystem = PrestigeSystem();
+    double xpMultiplier =
+        prestigeSystem.getPrestigeLevel(prestigeLevel).xpMultiplier;
+
+    // Apply Quick Learner talent bonus
+    int quickLearnerLevel = talents.getTalentLevel('quick_learner');
+    double talentBonus = 1 + (quickLearnerLevel * 0.05);
+
+    int adjustedAmount = (amount * xpMultiplier * talentBonus).round();
+
+    experience += adjustedAmount;
     while (experience >= experienceForNextLevel) {
       levelUp();
     }
@@ -63,6 +80,18 @@ class Character extends ChangeNotifier {
 
   void improveSkill(String skillName, int amount) {
     if (skills.containsKey(skillName)) {
+      // Apply skill-specific talent bonuses
+      if (skillName == 'Charisma' &&
+          talents.getTalentLevel('social_butterfly') > 0) {
+        amount =
+            (amount * (1 + talents.getTalentLevel('social_butterfly') * 0.1))
+                .round();
+      } else if (skillName == 'Constitution' &&
+          talents.getTalentLevel('iron_body') > 0) {
+        amount =
+            (amount * (1 + talents.getTalentLevel('iron_body') * 0.1)).round();
+      }
+
       skills[skillName]!.addXp(amount);
       notifyListeners();
     }
@@ -73,16 +102,37 @@ class Character extends ChangeNotifier {
     notifyListeners();
   }
 
-    void updateFrom(Character other) {
+  void updateFrom(Character other) {
     name = other.name;
     baseClass = other.baseClass;
     skills = Map.from(other.skills);
-    // Update any other properties as needed
+    prestigeLevel = other.prestigeLevel;
+    talents = other.talents;
     notifyListeners();
   }
 
+  void prestige() {
+    if (canPrestige()) {
+      prestigeLevel++;
+      resetSkills();
+      notifyListeners();
+    }
+  }
 
-  // Update toJson and fromJson methods to include new properties
+  bool canPrestige() {
+    // Define your prestige requirements here
+    int totalLevel = skills.values.fold(0, (sum, skill) => sum + skill.level);
+    return totalLevel >= 1000 &&
+        prestigeLevel < PrestigeSystem().levels.length - 1;
+  }
+
+  void resetSkills() {
+    skills.forEach((key, skill) {
+      skill.setLevel(1);
+      skill.setXp(0);
+    });
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -92,6 +142,8 @@ class Character extends ChangeNotifier {
       'level': level,
       'experience': experience,
       'resources': resources,
+      'prestigeLevel': prestigeLevel,
+      'talents': talents.unlockedTalents,
     };
   }
 
@@ -107,6 +159,9 @@ class Character extends ChangeNotifier {
       level: json['level'] ?? 1,
       experience: json['experience'] ?? 0,
       resources: Map<String, int>.from(json['resources'] ?? {}),
+      prestigeLevel: json['prestigeLevel'] ?? 0,
+      talents: PlayerTalents()
+        ..unlockedTalents = Map<String, int>.from(json['talents'] ?? {}),
     );
   }
 }

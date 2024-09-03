@@ -16,3 +16,15 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
+
+android {
+    compileSdkVersion 33  // or the latest version you have installed
+
+    defaultConfig {
+        applicationId "com.yourdomain.lifestats_tracker"  // replace with your desired package name
+        minSdkVersion 21  // or higher, depending on your target audience
+        targetSdkVersion 33  // or the latest version you have installed
+        versionCode 1
+        versionName "1.0.0"
+    }
+}
