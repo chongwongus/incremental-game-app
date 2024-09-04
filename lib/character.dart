@@ -1,9 +1,9 @@
 // character.dart
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'skill.dart';
 import 'prestige_system.dart';
-import 'talent_system.dart';
+import 'talent_system.dart' as ts;
 
 enum BaseClass { melee, ranged, magic }
 
@@ -11,26 +11,53 @@ class Character extends ChangeNotifier {
   String name;
   BaseClass baseClass;
   Map<String, Skill> skills;
+  Set<String> unlockedSkills;
   String job;
   int level;
   int experience;
   Map<String, int> resources;
   int prestigeLevel;
-  PlayerTalents talents;
-  String? profilePicture;
+  ts.PlayerTalents talents;
+  int talentPoints;
 
   Character({
     required this.name,
     required this.baseClass,
     required this.skills,
+    Set<String>? unlockedSkills,
     this.job = 'Novice',
     this.level = 1,
     this.experience = 0,
     Map<String, int>? resources,
     this.prestigeLevel = 0,
-    PlayerTalents? talents,
+    ts.PlayerTalents? talents,
+    this.talentPoints = 0,
   })  : resources = resources ?? {'Wood': 0, 'Fish': 0, 'Ore': 0},
-        talents = talents ?? PlayerTalents();
+        talents = talents ?? ts.PlayerTalents(),
+        unlockedSkills = unlockedSkills ?? Set<String>.from(skills.keys);
+
+  void unlockSkill(String skillName) {
+    if (!unlockedSkills.contains(skillName)) {
+      unlockedSkills.add(skillName);
+      if (!skills.containsKey(skillName)) {
+        skills[skillName] = Skill(name: skillName, icon: Icons.star);
+      }
+      notifyListeners();
+    }
+  }
+
+  bool isSkillUnlocked(String skillName) {
+    return unlockedSkills.contains(skillName);
+  }
+
+  void addTalentPoints(int points) {
+    talentPoints += points;
+    notifyListeners();
+  }
+
+  void unlockSkills(List<String> skills) {
+    // Implementation
+  }
 
   int get attackPower {
     switch (baseClass) {
@@ -139,13 +166,14 @@ class Character extends ChangeNotifier {
       'name': name,
       'baseClass': baseClass.toString().split('.').last,
       'skills': skills.map((key, value) => MapEntry(key, value.toJson())),
+      'unlockedSkills': unlockedSkills.toList(),
       'job': job,
       'level': level,
       'experience': experience,
       'resources': resources,
       'prestigeLevel': prestigeLevel,
       'talents': talents.unlockedTalents,
-      'profilePicture': profilePicture,
+      'talentPoints': talentPoints,
     };
   }
 
@@ -157,14 +185,15 @@ class Character extends ChangeNotifier {
       skills: (json['skills'] as Map<String, dynamic>).map(
         (key, value) => MapEntry(key, Skill.fromJson(value)),
       ),
+      unlockedSkills: Set<String>.from(json['unlockedSkills']),
       job: json['job'],
       level: json['level'] ?? 1,
       experience: json['experience'] ?? 0,
       resources: Map<String, int>.from(json['resources'] ?? {}),
       prestigeLevel: json['prestigeLevel'] ?? 0,
-      talents: PlayerTalents()
+      talents: ts.PlayerTalents()
         ..unlockedTalents = Map<String, int>.from(json['talents'] ?? {}),
-        
+      talentPoints: json['talentPoints'] ?? 0,
     );
   }
 }

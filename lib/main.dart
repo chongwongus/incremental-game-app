@@ -18,7 +18,8 @@ import 'idle_screen.dart';
 import 'resource.dart';
 import 'talent_system.dart';
 import 'talent_tree.dart';
-
+import 'quest_progress_widget.dart';
+import 'quest_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,14 +42,13 @@ void main() async {
           update: (context, character, resourceManager, previous) =>
               previous ?? IdleManager(character, resourceManager),
         ),
-        ChangeNotifierProvider(create: (_) => PlayerTalents()), // Add this line
+        ChangeNotifierProvider(create: (_) => PlayerTalents()),
         Provider.value(value: persistenceService),
       ],
       child: MyApp(initialCharacter: character),
     ),
   );
 }
-
 
 class MyApp extends StatelessWidget {
   final Character? initialCharacter;
@@ -235,7 +235,11 @@ class _HomePageState extends State<HomePage> {
     final character = context.read<Character>();
     dailyQuestManager = DailyQuestManager(updateSkill: character.improveSkill);
     dailyQuestManager.initialize();
-    questManager = QuestManager(updateSkill: character.improveSkill);
+    questManager = QuestManager(
+      updateSkill: character.improveSkill,
+      addTalentPoints: character.addTalentPoints,
+      unlockSkills: character.unlockSkills,
+    );
     questManager.initialize();
     achievements = createAchievements();
   }
@@ -370,10 +374,13 @@ class SkillsScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => TalentTreeScreen()),
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        QuestSelectionScreen(questManager: questManager),
+                  ),
                 );
               },
-              child: Text('Talent Tree'),
+              child: Text('View Available Quests'),
             ),
           ],
         ),

@@ -14,8 +14,14 @@ class Quest {
   final int expReward;
   final QuestDifficulty difficulty;
   final Duration duration;
+  final bool isEpic;
+  final int talentPointsReward;
+  final List<String> skillUnlocks;
   bool isCompleted;
   DateTime? startTime;
+  DateTime? lastCheckIn;
+  int checkInsRequired;
+  int checkInsCompleted;
 
   Quest({
     required this.id,
@@ -25,9 +31,16 @@ class Quest {
     required this.expReward,
     required this.difficulty,
     required this.duration,
+    this.isEpic = false,
+    this.talentPointsReward = 0,
+    this.skillUnlocks = const [],
     this.isCompleted = false,
     this.startTime,
+    this.lastCheckIn,
+    this.checkInsRequired = 1,
+    this.checkInsCompleted = 0,
   });
+  bool get isEpicQuest => isEpic;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -39,6 +52,9 @@ class Quest {
         'duration': duration.inSeconds,
         'isCompleted': isCompleted,
         'startTime': startTime?.toIso8601String(),
+        'lastCheckIn': lastCheckIn?.toIso8601String(),
+        'checkInsRequired': checkInsRequired,
+        'checkInsCompleted': checkInsCompleted,
       };
 
   factory Quest.fromJson(Map<String, dynamic> json) => Quest(
@@ -53,12 +69,32 @@ class Quest {
         startTime: json['startTime'] != null
             ? DateTime.parse(json['startTime'])
             : null,
+        lastCheckIn: json['lastCheckIn'] != null
+            ? DateTime.parse(json['lastCheckIn'])
+            : null,
+        checkInsRequired: json['checkInsRequired'],
+        checkInsCompleted: json['checkInsCompleted'],
       );
-
   double get progress {
     if (startTime == null) return 0;
     final elapsed = DateTime.now().difference(startTime!);
     return (elapsed.inSeconds / duration.inSeconds).clamp(0.0, 1.0);
+  }
+
+  bool canCheckIn() {
+    if (lastCheckIn == null) return true;
+    return DateTime.now().difference(lastCheckIn!) >= Duration(days: 1);
+  }
+
+  void checkIn() {
+    if (canCheckIn()) {
+      lastCheckIn = DateTime.now();
+      checkInsCompleted++;
+    }
+  }
+
+  bool isReadyForCompletion() {
+    return progress >= 1.0 && checkInsCompleted >= checkInsRequired;
   }
 }
 
@@ -78,7 +114,7 @@ class _QuestProgressCheckerState extends State<QuestProgressChecker> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(Duration(minutes: 5), (timer) {
-      widget.questManager.checkQuestProgress(context);
+      widget.questManager.checkQuestProgress();
     });
   }
 
@@ -97,23 +133,31 @@ class _QuestProgressCheckerState extends State<QuestProgressChecker> {
 class QuestManager {
   List<Quest> availableQuests = [];
   List<Quest> activeQuests = [];
-  static const int MAX_ACTIVE_QUESTS = 1;
+  List<Quest> completedQuests = [];
+  static const int MAX_ACTIVE_QUESTS = 3;
   final Function(String, int) updateSkill;
+  final Function(int) addTalentPoints;
+  final Function(List<String>) unlockSkills;
   final PersistenceService _persistenceService = PersistenceService();
 
-  QuestManager({required this.updateSkill});
+  QuestManager({
+    required this.updateSkill,
+    required this.addTalentPoints,
+    required this.unlockSkills,
+  });
 
   Future<void> initialize() async {
     await loadQuests();
+    Timer.periodic(Duration(hours: 1), (timer) => checkQuestProgress());
   }
 
-  void checkQuestProgress(BuildContext context) {
+  void checkQuestProgress() {
     for (var quest in activeQuests) {
-      if (quest.startTime != null &&
-          DateTime.now().difference(quest.startTime!) >= quest.duration) {
-        completeQuest(context, quest.id);
+      if (quest.isReadyForCompletion()) {
+        completeQuest(quest.id);
       }
     }
+    checkForEpicQuestUnlocks();
   }
 
   Future<void> loadQuests() async {
@@ -220,6 +264,26 @@ class QuestManager {
         difficulty: QuestDifficulty.medium,
         duration: Duration(days: 7),
       ),
+      Quest(
+        id: 'code_mobile_app',
+        title: 'Code a Mobile App',
+        description: 'Work on coding a mobile app for a week',
+        relatedSkill: 'Intelligence',
+        expReward: 500,
+        difficulty: QuestDifficulty.medium,
+        duration: Duration(days: 7),
+        checkInsRequired: 3,
+      ),
+      Quest(
+        id: 'release_app_update',
+        title: 'Release App Update',
+        description: 'Release a new update for your mobile app',
+        relatedSkill: 'Intelligence',
+        expReward: 1000,
+        difficulty: QuestDifficulty.epic,
+        duration: Duration(days: 30),
+        checkInsRequired: 5,
+      ),
     ];
 
     // Load active quests from persistence
@@ -252,17 +316,102 @@ class QuestManager {
     return true;
   }
 
-  Future<void> completeQuest(BuildContext context, String questId) async {
+  Future<void> completeQuest(String questId) async {
     final quest = activeQuests.firstWhere((q) => q.id == questId);
     quest.isCompleted = true;
     updateSkill(quest.relatedSkill, quest.expReward);
-    activeQuests.removeWhere((q) => q.id == questId);
-    await saveActiveQuests();
 
-    // Award a talent point for completing harder quests
-    if (quest.difficulty == QuestDifficulty.hard ||
-        quest.difficulty == QuestDifficulty.epic) {
-      Provider.of<PlayerTalents>(context, listen: false).addPoints(1);
+    if (quest.isEpicQuest) {
+      addTalentPoints(quest.talentPointsReward);
+      unlockSkills(quest.skillUnlocks);
+    }
+
+    activeQuests.removeWhere((q) => q.id == questId);
+    completedQuests.add(quest);
+    await saveQuests();
+  }
+
+  Future<void> saveQuests() async {
+    await _persistenceService.saveObjectList(
+        'available_quests', availableQuests.map((q) => q.toJson()).toList());
+    await _persistenceService.saveObjectList(
+        'active_quests', activeQuests.map((q) => q.toJson()).toList());
+    await _persistenceService.saveObjectList(
+        'completed_quests', completedQuests.map((q) => q.toJson()).toList());
+  }
+
+  Future<void> checkInQuest(String questId) async {
+    final quest = activeQuests.firstWhere((q) => q.id == questId);
+    if (quest.canCheckIn()) {
+      quest.checkIn();
+      await saveActiveQuests();
     }
   }
+
+  void checkForEpicQuestUnlocks() {
+    // Example: Unlock "Release App Update" epic quest after completing "Code a Mobile App"
+    if (completedQuests.any((q) => q.id == 'code_mobile_app') &&
+        !availableQuests.any((q) => q.id == 'release_app_update') &&
+        !activeQuests.any((q) => q.id == 'release_app_update') &&
+        !completedQuests.any((q) => q.id == 'release_app_update')) {
+      availableQuests.add(Quest(
+        id: 'release_app_update',
+        title: 'Release App Update',
+        description: 'Release a new update for your mobile app',
+        relatedSkill: 'Intelligence',
+        expReward: 1000,
+        difficulty: QuestDifficulty.epic,
+        duration: Duration(days: 30),
+        checkInsRequired: 5,
+        isEpic: true,
+        talentPointsReward: 2,
+        skillUnlocks: ['App Development'],
+      ));
+    }
+  }
+
+  void initializeEpicQuests() {
+  availableQuests.addAll([
+    Quest(
+      id: 'learn_new_language',
+      title: 'Polyglot Challenge',
+      description: 'Learn the basics of a new language',
+      relatedSkill: 'Intelligence',
+      expReward: 2000,
+      difficulty: QuestDifficulty.epic,
+      duration: Duration(days: 90),
+      checkInsRequired: 30,
+      isEpic: true,
+      talentPointsReward: 3,
+      skillUnlocks: ['Linguistics'],
+    ),
+    Quest(
+      id: 'run_marathon',
+      title: 'Marathon Master',
+      description: 'Train for and complete a full marathon',
+      relatedSkill: 'Constitution',
+      expReward: 2500,
+      difficulty: QuestDifficulty.epic,
+      duration: Duration(days: 120),
+      checkInsRequired: 40,
+      isEpic: true,
+      talentPointsReward: 4,
+      skillUnlocks: ['Endurance Running'],
+    ),
+    Quest(
+      id: 'start_business',
+      title: 'Entrepreneurial Spirit',
+      description: 'Develop a business plan and launch a small business',
+      relatedSkill: 'Charisma',
+      expReward: 3000,
+      difficulty: QuestDifficulty.epic,
+      duration: Duration(days: 180),
+      checkInsRequired: 60,
+      isEpic: true,
+      talentPointsReward: 5,
+      skillUnlocks: ['Business Management', 'Leadership'],
+    ),
+  ]);
+}
+
 }

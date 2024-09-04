@@ -144,3 +144,4 @@ class TalentNode extends StatelessWidget {
     );
   }
 }
+
