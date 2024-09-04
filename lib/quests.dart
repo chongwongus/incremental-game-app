@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'persistence_service.dart';
+import 'talent_system.dart';
 
 enum QuestDifficulty { easy, medium, hard, epic }
 
@@ -60,6 +62,38 @@ class Quest {
   }
 }
 
+class QuestProgressChecker extends StatefulWidget {
+  final QuestManager questManager;
+
+  QuestProgressChecker({required this.questManager});
+
+  @override
+  _QuestProgressCheckerState createState() => _QuestProgressCheckerState();
+}
+
+class _QuestProgressCheckerState extends State<QuestProgressChecker> {
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(Duration(minutes: 5), (timer) {
+      widget.questManager.checkQuestProgress(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.shrink(); // This widget doesn't render anything visible
+  }
+}
+
 class QuestManager {
   List<Quest> availableQuests = [];
   List<Quest> activeQuests = [];
@@ -71,14 +105,13 @@ class QuestManager {
 
   Future<void> initialize() async {
     await loadQuests();
-    Timer.periodic(Duration(minutes: 5), (timer) => checkQuestProgress());
   }
 
-  void checkQuestProgress() {
+  void checkQuestProgress(BuildContext context) {
     for (var quest in activeQuests) {
       if (quest.startTime != null &&
           DateTime.now().difference(quest.startTime!) >= quest.duration) {
-        completeQuest(quest.id);
+        completeQuest(context, quest.id);
       }
     }
   }
@@ -219,11 +252,17 @@ class QuestManager {
     return true;
   }
 
-  Future<void> completeQuest(String questId) async {
+  Future<void> completeQuest(BuildContext context, String questId) async {
     final quest = activeQuests.firstWhere((q) => q.id == questId);
     quest.isCompleted = true;
     updateSkill(quest.relatedSkill, quest.expReward);
     activeQuests.removeWhere((q) => q.id == questId);
     await saveActiveQuests();
+
+    // Award a talent point for completing harder quests
+    if (quest.difficulty == QuestDifficulty.hard ||
+        quest.difficulty == QuestDifficulty.epic) {
+      Provider.of<PlayerTalents>(context, listen: false).addPoints(1);
+    }
   }
 }

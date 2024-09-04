@@ -1,5 +1,5 @@
-name: flutter_incremental_app_game
-description: "A new Flutter project."
+name: afk_life
+description: A Flutter project for tracking life stats. Inspired by Runescape, Melvor IDLE, and AFK Journey
 
 # Prevent accidental publishing to pub.dev.
 publish_to: 'none'

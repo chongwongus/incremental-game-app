@@ -84,13 +84,10 @@ class _DailyQuestsWidgetState extends State<DailyQuestsWidget> {
             ),
           )
         else
-          ...incompleteQuests.take(3).map((quest) => DailyQuestCard(
-                quest: quest,
-                onComplete: () async {
-                  await widget.dailyQuestManager.completeQuest(
-                      widget.dailyQuestManager.dailyQuests.indexOf(quest));
-                  setState(() {});
-                },
+          ...incompleteQuests.asMap().entries.map((entry) => DailyQuestCard(
+                quest: entry.value,
+                dailyQuestManager: widget.dailyQuestManager,
+                index: widget.dailyQuestManager.dailyQuests.indexOf(entry.value),
               )),
       ],
     );
@@ -99,9 +96,14 @@ class _DailyQuestsWidgetState extends State<DailyQuestsWidget> {
 
 class DailyQuestCard extends StatelessWidget {
   final DailyQuest quest;
-  final VoidCallback onComplete;
+  final DailyQuestManager dailyQuestManager;
+  final int index;
 
-  DailyQuestCard({required this.quest, required this.onComplete});
+  DailyQuestCard({
+    required this.quest,
+    required this.dailyQuestManager,
+    required this.index,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +122,9 @@ class DailyQuestCard extends StatelessWidget {
             Text(quest.description),
             SizedBox(height: 8),
             ElevatedButton(
-              onPressed: onComplete,
+              onPressed: () async {
+                await dailyQuestManager.completeQuest(context, index);
+              },
               child: Text('Complete'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
@@ -262,9 +266,8 @@ class DailyQuestsTab extends StatelessWidget {
         final quest = dailyQuestManager.dailyQuests[index];
         return DailyQuestCard(
           quest: quest,
-          onComplete: () async {
-            await dailyQuestManager.completeQuest(index);
-          },
+          dailyQuestManager: dailyQuestManager,
+          index: index,
         );
       },
     );

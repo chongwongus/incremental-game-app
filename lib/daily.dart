@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'persistence_service.dart';
+import 'talent_system.dart';
 
 class DailyQuest {
   final String title;
@@ -185,7 +187,8 @@ class DailyQuestManager {
     await _persistenceService.saveDailyQuests(dailyQuests);
   }
 
-  Future<void> completeQuest(int index) async {
+
+  Future<void> completeQuest(BuildContext context, int index) async {
     if (!areAllQuestsCompleted && !dailyQuests[index].isCompleted) {
       dailyQuests[index].isCompleted = true;
       updateSkill(dailyQuests[index].relatedSkill, dailyQuests[index].expReward);
@@ -196,6 +199,9 @@ class DailyQuestManager {
         areAllQuestsCompleted = true;
         lastResetTime = DateTime.now();
         await _persistenceService.saveLastResetDate(lastResetTime!.toIso8601String());
+        
+        // Award a talent point for completing all daily quests
+        Provider.of<PlayerTalents>(context, listen: false).addPoints(1);
       }
     }
   }

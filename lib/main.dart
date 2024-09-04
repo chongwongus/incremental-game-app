@@ -5,8 +5,6 @@ import 'package:provider/provider.dart';
 import 'skill.dart';
 import 'persistence_service.dart';
 import 'skill_detail_page.dart';
-import 'skill_achievements.dart';
-import 'achievements_page.dart';
 import 'achievement.dart';
 import 'daily.dart';
 import 'quests.dart';
@@ -18,6 +16,9 @@ import 'quest_widgets.dart';
 import 'idle_manager.dart';
 import 'idle_screen.dart';
 import 'resource.dart';
+import 'talent_system.dart';
+import 'talent_tree.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,12 +41,14 @@ void main() async {
           update: (context, character, resourceManager, previous) =>
               previous ?? IdleManager(character, resourceManager),
         ),
+        ChangeNotifierProvider(create: (_) => PlayerTalents()), // Add this line
         Provider.value(value: persistenceService),
       ],
       child: MyApp(initialCharacter: character),
     ),
   );
 }
+
 
 class MyApp extends StatelessWidget {
   final Character? initialCharacter;
@@ -356,9 +359,23 @@ class SkillsScreen extends StatelessWidget {
         ),
         SizedBox(height: 24),
         ActiveQuestsWidget(questManager: questManager),
-        Text(
-          'Your Skills',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Your Skills',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => TalentTreeScreen()),
+                );
+              },
+              child: Text('Talent Tree'),
+            ),
+          ],
         ),
         SizedBox(height: 16),
         GridView.builder(

@@ -17,6 +17,7 @@ class Character extends ChangeNotifier {
   Map<String, int> resources;
   int prestigeLevel;
   PlayerTalents talents;
+  String? profilePicture;
 
   Character({
     required this.name,
@@ -144,6 +145,7 @@ class Character extends ChangeNotifier {
       'resources': resources,
       'prestigeLevel': prestigeLevel,
       'talents': talents.unlockedTalents,
+      'profilePicture': profilePicture,
     };
   }
 
@@ -162,6 +164,7 @@ class Character extends ChangeNotifier {
       prestigeLevel: json['prestigeLevel'] ?? 0,
       talents: PlayerTalents()
         ..unlockedTalents = Map<String, int>.from(json['talents'] ?? {}),
+        
     );
   }
 }
